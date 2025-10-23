@@ -21,7 +21,7 @@ except Exception as e:
 
 # Automatically find all PDF files in the care-plans directory
 import glob
-CARE_PLAN_FILES = glob.glob("/Users/ayaan/Downloads/hydration/care-plans/*.pdf")
+CARE_PLAN_FILES = glob.glob("care-plans/*.pdf")
 
 def read_pdf_text(path: str) -> str:
     """Return concatenated text of a PDF using available backends."""
@@ -317,7 +317,7 @@ for pdf_path in CARE_PLAN_FILES:
         rows.append(("", None, os.path.basename(pdf_path) + " (not found)"))
 
 # Write CSV
-out_path = "/Users/ayaan/Downloads/hydration/hydration_goals.csv"
+out_path = "hydration_goals.csv"
 with open(out_path, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
     writer.writerow(["Resident Name", "mL Goal", "Source File"])

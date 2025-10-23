@@ -1,0 +1,133 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import FileUpload from './FileUpload';
+import HydrationData from './HydrationData';
+import UserManagement from './UserManagement';
+
+export default function Dashboard() {
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('data');
+  const [userRole, setUserRole] = useState<'admin' | 'home_manager' | null>(null);
+  const [retirementHome, setRetirementHome] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    if (!user) return;
+    
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserRole(userData.role);
+        setRetirementHome(userData.retirementHome || '');
+        
+        // Home managers should only see data tab
+        if (userData.role === 'home_manager') {
+          setActiveTab('data');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {userRole === 'admin' ? 'Hydration Dashboard' : `${retirementHome} - Hydration Data`}
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-700">
+                Welcome, {user?.email}
+                {retirementHome && ` (${retirementHome})`}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation - Only show for admins */}
+      {userRole === 'admin' && (
+        <nav className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('upload')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'upload'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                File Upload
+              </button>
+              <button
+                onClick={() => setActiveTab('data')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'data'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Hydration Data
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'users'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                User Management
+              </button>
+            </div>
+          </div>
+        </nav>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {activeTab === 'upload' && userRole === 'admin' && <FileUpload />}
+        {activeTab === 'data' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
+        {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
+      </main>
+    </div>
+  );
+}
