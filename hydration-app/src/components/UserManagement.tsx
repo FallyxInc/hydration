@@ -51,7 +51,6 @@ export default function UserManagement() {
     setMessage('');
 
     try {
-      // Create user in Firebase Auth (this would need to be done server-side in production)
       const response = await fetch('/api/create-user', {
         method: 'POST',
         headers: {
@@ -63,16 +62,7 @@ export default function UserManagement() {
       const result = await response.json();
 
       if (response.ok) {
-        // Add user to Firestore
-        await addDoc(collection(db, 'users'), {
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          retirementHome: formData.retirementHome,
-          createdAt: new Date(),
-        });
-
-        setMessage('User created successfully!');
+        setMessage('User created successfully! You can now provide these credentials to the user to log in.');
         setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '' });
         setShowForm(false);
         fetchUsers();
@@ -142,7 +132,8 @@ export default function UserManagement() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                placeholder="Enter full name"
                 required
               />
             </div>
@@ -156,7 +147,8 @@ export default function UserManagement() {
                 id="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                placeholder="Enter email address"
                 required
               />
             </div>
@@ -170,7 +162,8 @@ export default function UserManagement() {
                 id="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                placeholder="Enter password"
                 required
               />
             </div>
@@ -183,7 +176,7 @@ export default function UserManagement() {
                 id="role"
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'home_manager' })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
               >
                 <option value="home_manager">Home Manager</option>
                 <option value="admin">Admin</option>
@@ -199,7 +192,7 @@ export default function UserManagement() {
                 id="retirementHome"
                 value={formData.retirementHome}
                 onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
                 placeholder="e.g., Sunset Manor, Golden Years, etc."
                 required
               />

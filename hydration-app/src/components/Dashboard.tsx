@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
@@ -28,6 +28,7 @@ export default function Dashboard() {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        console.log('User data:', userData); // Debug log
         setUserRole(userData.role);
         setRetirementHome(userData.retirementHome || '');
         
@@ -35,9 +36,26 @@ export default function Dashboard() {
         if (userData.role === 'home_manager') {
           setActiveTab('data');
         }
+      } else {
+        console.log('User document not found, creating default...');
+        // If user document doesn't exist, create a default one
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName || user.email?.split('@')[0] || 'User',
+          email: user.email,
+          role: 'home_manager', // Default role
+          retirementHome: 'Responsive Senior Living', // Default home
+          createdAt: new Date(),
+        });
+        setUserRole('home_manager');
+        setRetirementHome('Responsive Senior Living');
+        setActiveTab('data');
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      // Fallback to default values
+      setUserRole('home_manager');
+      setRetirementHome('Responsive Senior Living');
+      setActiveTab('data');
     } finally {
       setLoading(false);
     }

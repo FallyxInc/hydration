@@ -29,6 +29,8 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
 
   const fetchHydrationData = async () => {
     try {
+      console.log('Fetching data with:', { userRole, retirementHome }); // Debug log
+      
       const response = await fetch('/api/hydration-data', {
         method: 'POST',
         headers: {
@@ -41,12 +43,15 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       });
       const data = await response.json();
       
+      console.log('API response:', data); // Debug log
+      
       if (response.ok) {
         setResidents(data.residents || []);
       } else {
         setError(data.error || 'Failed to fetch data');
       }
     } catch (err) {
+      console.error('Fetch error:', err); // Debug log
       setError('Failed to fetch hydration data');
     } finally {
       setLoading(false);

@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginForm() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,11 +17,7 @@ export default function LoginForm() {
     setError('');
 
     try {
-      if (isLogin) {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-      }
+      await signIn(email, password);
     } catch (err: any) {
       // Handle Firebase errors with user-friendly messages
       let errorMessage = 'An error occurred. Please try again.';
@@ -54,7 +49,7 @@ export default function LoginForm() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isLogin ? 'Sign in to your account' : 'Create your account'}
+            Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Hydration Dashboard
@@ -122,17 +117,7 @@ export default function LoginForm() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
-              {loading ? 'Loading...' : (isLogin ? 'Sign in' : 'Sign up')}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              className="text-primary-600 hover:text-primary-500"
-              onClick={() => setIsLogin(!isLogin)}
-            >
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              {loading ? 'Loading...' : 'Sign in'}
             </button>
           </div>
         </form>

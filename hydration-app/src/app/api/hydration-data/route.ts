@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     const { userRole, retirementHome } = await request.json();
     
+    console.log('API received:', { userRole, retirementHome }); // Debug log
+    
     // Determine data source based on user role
     let csvPath: string;
     
@@ -16,7 +18,11 @@ export async function POST(request: NextRequest) {
       // Home manager sees only their home's data
       csvPath = join(process.cwd(), 'data', retirementHome, 'hydration_goals.csv');
     } else {
-      return NextResponse.json({ error: 'Invalid user role or missing retirement home' }, { status: 400 });
+      console.log('Error: Invalid user role or missing retirement home', { userRole, retirementHome });
+      return NextResponse.json({ 
+        error: 'Invalid user role or missing retirement home',
+        details: { userRole, retirementHome }
+      }, { status: 400 });
     }
     
     try {

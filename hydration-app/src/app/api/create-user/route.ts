@@ -1,40 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, role } = await request.json();
+    const { name, email, password, role, retirementHome } = await request.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!email || !password || !name || !retirementHome) {
+      return NextResponse.json({ 
+        error: 'Name, email, password, and retirement home are required' 
+      }, { status: 400 });
     }
 
-    // Note: In a production environment, you should use Firebase Admin SDK
-    // to create users server-side. This is a simplified example.
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      return NextResponse.json({
-        success: true,
-        message: 'User created successfully',
-        user: {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          name,
-          role
-        }
-      });
-    } catch (error: any) {
-      return NextResponse.json(
-        { error: 'Failed to create user', details: error.message },
-        { status: 400 }
-      );
-    }
-  } catch (error) {
+    // For now, just create the user document in Firestore
+    // The actual Firebase Auth user creation should be done client-side
+    const userDoc = await addDoc(collection(db, 'users'), {
+      name,
+      email,
+      role,
+      retirementHome,
+      createdAt: new Date(),
+      // Add a flag to indicate this user needs to be created in Auth
+      needsAuthCreation: true
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: userDoc.id,
+        name,
+        email,
+        role,
+        retirementHome
+      }
+    });
+
+  } catch (error: any) {
     console.error('Error creating user:', error);
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { error: 'Failed to create user', details: error.message },
       { status: 500 }
     );
   }

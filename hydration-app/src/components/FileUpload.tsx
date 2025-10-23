@@ -177,7 +177,7 @@ export default function FileUpload({}: FileUploadProps) {
               name="retirementHome"
               value={selectedRetirementHome}
               onChange={(e) => setSelectedRetirementHome(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+              className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base bg-white"
             >
               <option value="">Select a retirement home...</option>
               <option value="Sunset Manor">Sunset Manor</option>
@@ -185,6 +185,7 @@ export default function FileUpload({}: FileUploadProps) {
               <option value="Maple Gardens">Maple Gardens</option>
               <option value="Cedar Grove">Cedar Grove</option>
               <option value="Hickory Heights">Hickory Heights</option>
+              <option value="Responsive Senior Living">Responsive Senior Living</option>
             </select>
           </div>
 
