@@ -116,16 +116,6 @@ export default function Dashboard() {
                 File Upload
               </button>
               <button
-                onClick={() => setActiveTab('data')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'data'
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Hydration Data
-              </button>
-              <button
                 onClick={() => setActiveTab('users')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'users'
@@ -143,7 +133,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {activeTab === 'upload' && userRole === 'admin' && <FileUpload />}
-        {activeTab === 'data' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
+        {activeTab === 'data' && userRole === 'home_manager' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
         {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
       </main>
     </div>

@@ -3,10 +3,12 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 [HYDRATION DATA API] Starting hydration data request...');
+  
   try {
     const { userRole, retirementHome } = await request.json();
     
-    console.log('API received:', { userRole, retirementHome }); // Debug log
+    console.log('📊 [HYDRATION DATA API] Request parameters:', { userRole, retirementHome });
     
     // Determine data source based on user role
     let csvPath: string;
@@ -14,11 +16,13 @@ export async function POST(request: NextRequest) {
     if (userRole === 'admin') {
       // Admin sees all data - use main CSV
       csvPath = join(process.cwd(), '..', 'hydration_goals.csv');
+      console.log('👑 [HYDRATION DATA API] Admin access - using main CSV:', csvPath);
     } else if (userRole === 'home_manager' && retirementHome) {
       // Home manager sees only their home's data
       csvPath = join(process.cwd(), 'data', retirementHome, 'hydration_goals.csv');
+      console.log('🏠 [HYDRATION DATA API] Home manager access - using home-specific CSV:', csvPath);
     } else {
-      console.log('Error: Invalid user role or missing retirement home', { userRole, retirementHome });
+      console.log('❌ [HYDRATION DATA API] Error: Invalid user role or missing retirement home', { userRole, retirementHome });
       return NextResponse.json({ 
         error: 'Invalid user role or missing retirement home',
         details: { userRole, retirementHome }
@@ -26,9 +30,14 @@ export async function POST(request: NextRequest) {
     }
     
     try {
+      console.log('📖 [HYDRATION DATA API] Reading CSV file:', csvPath);
       const csvContent = await readFile(csvPath, 'utf-8');
+      console.log(`✅ [HYDRATION DATA API] CSV file read successfully (${csvContent.length} characters)`);
+      
       const lines = csvContent.split('\n');
       const headers = lines[0].split(',');
+      console.log('📊 [HYDRATION DATA API] CSV headers:', headers);
+      console.log(`📊 [HYDRATION DATA API] Total lines in CSV: ${lines.length}`);
       
       const residents = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = line.split(',');
@@ -67,8 +76,12 @@ export async function POST(request: NextRequest) {
         return resident;
       });
 
+      console.log(`✅ [HYDRATION DATA API] Processed ${residents.length} residents`);
+      console.log('🎉 [HYDRATION DATA API] Hydration data request completed successfully');
+
       return NextResponse.json({ residents });
     } catch (error) {
+      console.log('❌ [HYDRATION DATA API] CSV file not found or could not be read:', error);
       // If no CSV file exists, return empty data
       return NextResponse.json({ residents: [] });
     }
