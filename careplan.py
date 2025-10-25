@@ -148,8 +148,7 @@ def extract_resident_names(text: str, debug=False) -> List[str]:
     if debug:
         print(f"🔍 Extracting names from text (length: {len(text)})")
     
-    # ONLY Pattern: Strict format "LASTNAME, FIRSTNAME (ID)" with 4+ digit ID
-    # This is the most reliable pattern for actual residents
+    # Pattern 1: Strict format "LASTNAME, FIRSTNAME (ID)" with 4+ digit ID
     for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s+[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
         
@@ -160,10 +159,58 @@ def extract_resident_names(text: str, debug=False) -> List[str]:
         if is_likely_real_name(name):
             names.append(name)
             if debug:
-                print(f"✅ Added resident: {name}")
+                print(f"✅ Added resident (with ID): {name}")
         else:
             if debug:
-                print(f"❌ Filtered out: {name}")
+                print(f"❌ Filtered out (with ID): {name}")
+    
+    # Pattern 2: More flexible format "LASTNAME, FIRSTNAME" without ID requirement
+    # This catches residents that don't have ID numbers, but with stricter filtering
+    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s+[A-Z][A-Za-z\s\'-]+)(?:\s*\([^)]*\))?", text):
+        name = m.group(1).strip().title()
+        
+        # Clean up the name format
+        name = re.sub(r'\s+', ' ', name)  # Normalize whitespace
+        
+        # Skip if we already found this name with the stricter pattern
+        if name in names:
+            continue
+        
+        # Skip obvious non-person names (medical terms, activities, etc.)
+        skip_patterns = [
+            r'\b(Admission|Physician|Location|Date|Print|Regular|Diet|Texture)\b',
+            r'\b(Slapping|Kicking|Biting|Hitting|Punching|Sexual|Abuse)\b',
+            r'\b(Dementia|Depression|Anxiety|Disease|Disorder|Syndrome)\b',
+            r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Am|Pm)\b',
+            r'\b(Constipation|Osteoporosis|Hypertension|Diabetes)\b',
+            r'\b(Physical|Social|Mental|Emotional|Behavioral)\b',
+            r'\b(Supervision|Limited|Extensive|Maximal|Total)\b',
+            r'\b(Reminder|Cue|Direction|Assistance)\b',
+            r'\b(Revision|On|Off|Prn|Asa|Tegretol)\b',
+            r'\b(Penicillin|Codeine|Aspirin|Warfarin|Insulin)\b',
+            r'\b(Regular|Diet|Texture|Date|Initiated)\b',
+            r'\b(Print|Date|Resident|Has|No|Middle|Name)\b'
+        ]
+        
+        should_skip = False
+        for pattern in skip_patterns:
+            if re.search(pattern, name, re.IGNORECASE):
+                should_skip = True
+                break
+        
+        if should_skip:
+            if debug:
+                print(f"❌ Filtered out (skip pattern): {name}")
+            continue
+            
+        # STRICT filtering - only allow if it looks like a real person's name
+        if is_likely_real_name(name):
+            names.append(name)
+            if debug:
+                print(f"✅ Added resident (flexible): {name}")
+        else:
+            if debug:
+                print(f"❌ Filtered out (flexible): {name}")
     
     # Remove duplicates while preserving order
     seen = set()

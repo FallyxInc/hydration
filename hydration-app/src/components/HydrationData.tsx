@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface HydrationDataProps {
   userRole?: 'admin' | 'home_manager' | null;
@@ -25,11 +25,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    fetchHydrationData();
-  }, []);
-
-  const fetchHydrationData = async () => {
+  const fetchHydrationData = useCallback(async () => {
     console.log('🚀 [HYDRATION DATA COMPONENT] Starting data fetch...');
     console.log('📊 [HYDRATION DATA COMPONENT] Request parameters:', { userRole, retirementHome });
     
@@ -66,7 +62,11 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       setLoading(false);
       console.log('🏁 [HYDRATION DATA COMPONENT] Data fetch completed');
     }
-  };
+  }, [userRole, retirementHome]);
+
+  useEffect(() => {
+    fetchHydrationData();
+  }, [fetchHydrationData]);
 
   const getGoalStatus = (goal: number, yesterday: number) => {
     if (goal === 0) return 'No goal set';
@@ -287,7 +287,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             <div>
               <h3 className="text-lg leading-6 font-medium text-gray-900">Resident Hydration Data</h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Detailed view of all residents' hydration goals and consumption
+                Detailed view of all residents&apos; hydration goals and consumption
               </p>
             </div>
             
