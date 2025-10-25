@@ -40,7 +40,24 @@ export async function POST(request: NextRequest) {
       console.log(`📊 [HYDRATION DATA API] Total lines in CSV: ${lines.length}`);
       
       const residents = lines.slice(1).filter(line => line.trim()).map(line => {
-        const values = line.split(',');
+        // Parse CSV line properly handling quoted fields
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+        
         const resident: any = {};
         
         headers.forEach((header, index) => {

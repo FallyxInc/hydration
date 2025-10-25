@@ -253,7 +253,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64 min-w-64">
                   Resident Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -282,8 +282,10 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             <tbody className="bg-white divide-y divide-gray-200">
               {residents.map((resident, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {resident.name}
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900 w-64 min-w-64">
+                    <div className="truncate" title={resident.name}>
+                      {resident.name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.goal}
