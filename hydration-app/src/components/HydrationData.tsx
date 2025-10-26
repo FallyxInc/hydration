@@ -16,18 +16,30 @@ interface Resident {
   day15: number;
   day16: number;
   yesterday: number;
+  unit?: string;
+  averageIntake?: number;
+  hasFeedingTube?: boolean;
+  comments?: string;
 }
 
 export default function HydrationData({ userRole, retirementHome }: HydrationDataProps) {
   const [residents, setResidents] = useState<Resident[]>([]);
+  const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<number>(3);
+  const [residentComments, setResidentComments] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     fetchHydrationData();
   }, []);
+
+  useEffect(() => {
+    filterResidents();
+  }, [residents, selectedUnit, dateRange]);
 
   const fetchHydrationData = async () => {
     console.log('🚀 [HYDRATION DATA COMPONENT] Starting data fetch...');
@@ -54,7 +66,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       
       if (response.ok) {
         console.log(`✅ [HYDRATION DATA COMPONENT] Successfully fetched ${data.residents?.length || 0} residents`);
-        setResidents(data.residents || []);
+        const processedResidents = (data.residents || []).map((resident: any) => ({
+          ...resident,
+          unit: extractUnitFromName(resident.name),
+          averageIntake: calculateAverageIntake(resident),
+          hasFeedingTube: resident.hasFeedingTube || false,
+          comments: residentComments[resident.name] || ''
+        }));
+        setResidents(processedResidents);
       } else {
         console.error('❌ [HYDRATION DATA COMPONENT] API error:', data.error);
         setError(data.error || 'Failed to fetch data');
@@ -76,6 +95,43 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const cleanResidentName = (name: string) => {
     // Remove "No Middle Name" phrase from names
     return name.replace(/\s+No Middle Name\s*/gi, ' ').trim();
+  };
+
+  const extractUnitFromName = (name: string) => {
+    // Extract unit from name patterns like "Unit 2A" or "Floor 3"
+    const unitMatch = name.match(/(?:Unit|Floor)\s*(\d+[A-Z]?)/i);
+    return unitMatch ? unitMatch[1] : 'Unknown';
+  };
+
+  const calculateAverageIntake = (resident: any) => {
+    const days = [resident.day14, resident.day15, resident.day16, resident.yesterday];
+    const validDays = days.filter(day => day > 0);
+    return validDays.length > 0 ? Math.round(validDays.reduce((sum, day) => sum + day, 0) / validDays.length) : 0;
+  };
+
+  const filterResidents = () => {
+    let filtered = [...residents];
+    
+    // Filter by unit
+    if (selectedUnit !== 'all') {
+      filtered = filtered.filter(resident => resident.unit === selectedUnit);
+    }
+    
+    setFilteredResidents(filtered);
+  };
+
+  const handleCommentChange = (residentName: string, comment: string) => {
+    setResidentComments(prev => ({
+      ...prev,
+      [residentName]: comment
+    }));
+  };
+
+  const getUniqueUnits = () => {
+    const units = residents.map(r => r.unit).filter((unit, index, self) => 
+      unit && self.indexOf(unit) === index
+    );
+    return units.sort();
   };
 
   const handleDeleteData = async () => {
@@ -128,13 +184,17 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       // Create CSV headers
       const headers = [
         'Resident Name',
+        'Unit',
         'Goal (mL)',
         'Yesterday (mL)',
+        'Average Intake (mL)',
         'Status',
         'Day 14',
         'Day 15', 
         'Day 16',
         'Missed 3 Days',
+        'Has Feeding Tube',
+        'Comments',
         'Source File'
       ];
 
@@ -144,13 +204,17 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         const cleanedName = cleanResidentName(resident.name);
         return [
           `"${cleanedName}"`,
+          `"${resident.unit || 'Unknown'}"`,
           resident.goal,
           resident.yesterday,
+          resident.averageIntake || 0,
           `"${status}"`,
           resident.day14,
           resident.day15,
           resident.day16,
           `"${resident.missed3Days === 'yes' ? 'Yes' : 'No'}"`,
+          `"${resident.hasFeedingTube ? 'Yes' : 'No'}"`,
+          `"${residentComments[resident.name] || ''}"`,
           `"${resident.source}"`
         ];
       });
@@ -199,106 +263,147 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     );
   }
 
-  const goalMetCount = residents.filter(r => r.goal > 0 && r.yesterday >= r.goal).length;
-  const missed3DaysCount = residents.filter(r => r.missed3Days === 'yes').length;
-  const goalMetPercentage = residents.length > 0 ? (goalMetCount / residents.length * 100).toFixed(1) : '0';
+  const goalMetCount = filteredResidents.filter(r => r.goal > 0 && r.yesterday >= r.goal).length;
+  const missed3DaysCount = filteredResidents.filter(r => r.missed3Days === 'yes').length;
+  const goalMetPercentage = filteredResidents.length > 0 ? (goalMetCount / filteredResidents.length * 100).toFixed(1) : '0';
 
   return (
     <div className="space-y-6">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+      {/* Combined Summary Stats and Filter Controls - Same Line */}
+      <div className="flex space-x-6">
+        {/* Summary Stats Island - Left Side */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 flex-1">
+          <div className="grid grid-cols-2 gap-6">
+            {/* First Row */}
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">👥</span>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-4">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Residents</dt>
-                  <dd className="text-lg font-medium text-gray-900">{residents.length}</dd>
+                  <dt className="text-sm font-medium text-gray-500">Total Residents</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{residents.length}</dd>
+                </dl>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500">Goal Met Today</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{goalMetCount}</dd>
+                </dl>
+              </div>
+            </div>
+
+            {/* Second Row */}
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-300 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500">Missed 3 Days</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{missed3DaysCount}</dd>
+                </dl>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-400 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500">Goal Met %</dt>
+                  <dd className={`text-2xl font-bold ${
+                    parseFloat(goalMetPercentage) < 20 ? 'text-red-500' :
+                    parseFloat(goalMetPercentage) < 40 ? 'text-yellow-500' :
+                    parseFloat(goalMetPercentage) < 60 ? 'text-yellow-400' :
+                    parseFloat(goalMetPercentage) < 80 ? 'text-green-400' :
+                    'text-green-500'
+                  }`}>{goalMetPercentage}%</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">✅</span>
-                </div>
+        {/* Filter Controls Island - Right Side */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex flex-col justify-between h-full">
+            <div className="flex items-center space-x-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Unit Filter</label>
+                <select
+                  value={selectedUnit}
+                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                >
+                  <option value="all">All Units</option>
+                  {getUniqueUnits().map(unit => (
+                    <option key={unit} value={unit}>Unit {unit}</option>
+                  ))}
+                </select>
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Goal Met Today</dt>
-                  <dd className="text-lg font-medium text-gray-900">{goalMetCount}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">⚠️</span>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Missed 3 Days</dt>
-                  <dd className="text-lg font-medium text-gray-900">{missed3DaysCount}</dd>
-                </dl>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(parseInt(e.target.value))}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                >
+                  <option value={3}>Past 3 Days</option>
+                  <option value={7}>Past 7 Days</option>
+                  <option value={14}>Past 14 Days</option>
+                </select>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">📊</span>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Goal Met %</dt>
-                  <dd className="text-lg font-medium text-gray-900">{goalMetPercentage}%</dd>
-                </dl>
-              </div>
+            <div className="text-sm text-cyan-600 font-medium mt-4">
+              Showing {filteredResidents.length} of {residents.length} residents
             </div>
           </div>
         </div>
       </div>
 
       {/* Residents Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <div className="px-4 py-5 sm:px-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Resident Hydration Data</h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
+              <h3 className="text-2xl leading-6 font-bold text-gray-900">Resident Hydration Data</h3>
+              <p className="mt-2 text-sm text-gray-600">
                 Detailed view of all residents' hydration goals and consumption
               </p>
             </div>
             
             {/* Action buttons for home managers */}
             {userRole === 'home_manager' && (
-              <div className="flex space-x-3">
+              <div className="flex space-x-4">
                 {/* Export CSV button */}
                 <button
                   onClick={handleExportCSV}
                   disabled={exporting || residents.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2"
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   {exporting ? (
                     <>
@@ -322,11 +427,11 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <button
                   onClick={handleDeleteData}
                   disabled={deleting}
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   {deleting ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -349,39 +454,58 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64 min-w-64">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-64 min-w-64">
                   Resident Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Goal (mL)
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Yesterday (mL)
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Average (mL)
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Day 14
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Day 15
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Day 16
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Missed 3 Days
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-80 min-w-80">
+                  Comments
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {residents.map((resident, index) => (
-                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              {filteredResidents.map((resident, index) => (
+                <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 w-64 min-w-64">
-                    <div className="truncate" title={cleanResidentName(resident.name)}>
-                      {cleanResidentName(resident.name)}
+                    <div className="flex items-center space-x-2">
+                      <div className="truncate" title={cleanResidentName(resident.name)}>
+                        {cleanResidentName(resident.name)}
+                      </div>
+                      {resident.hasFeedingTube && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800" title="Has Feeding Tube">
+                          🥤
+                        </span>
+                      )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {resident.unit}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.goal}
@@ -389,8 +513,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.yesterday}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {resident.averageIntake || 0}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${getStatusColor(resident.goal, resident.yesterday)}`}>
+                    <span className={`text-sm font-medium ${
+                      resident.goal === 0 ? 'text-gray-400' : 
+                      resident.yesterday >= resident.goal ? 'text-green-600' : 'text-red-600'
+                    }`}>
                       {getGoalStatus(resident.goal, resident.yesterday)}
                     </span>
                   </td>
@@ -404,13 +534,22 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                     {resident.day16}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                       resident.missed3Days === 'yes' 
                         ? 'bg-red-100 text-red-800' 
                         : 'bg-green-100 text-green-800'
                     }`}>
                       {resident.missed3Days === 'yes' ? 'Yes' : 'No'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 w-80 min-w-80">
+                    <textarea
+                      value={residentComments[resident.name] || ''}
+                      onChange={(e) => handleCommentChange(resident.name, e.target.value)}
+                      placeholder="Add comment..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                      rows={2}
+                    />
                   </td>
                 </tr>
               ))}

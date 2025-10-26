@@ -179,6 +179,78 @@ def extract_resident_names(text: str, debug=False) -> List[str]:
     
     return unique_names
 
+def extract_feeding_tube_info(text: str, debug=False) -> bool:
+    """
+    Check if the text contains feeding tube information in the Focus section.
+    Looks for common feeding tube related terms with various case variations.
+    Returns binary result (0 or 1) - if any feeding tube mention is found for a resident.
+    """
+    if debug:
+        print(f"🔍 [FEEDING TUBE] Checking for feeding tube information...")
+    
+    # Comprehensive feeding tube related terms with case variations
+    feeding_tube_patterns = [
+        # Direct feeding tube mentions with case variations
+        r'feeding\s+tube',
+        r'FEEDING\s+TUBE',
+        r'Feeding\s+Tube',
+        r'Feeding\s+tube',
+        r'feeding\s+Tube',
+        
+        # Medical tube types
+        r'g\s*tube',
+        r'G\s*TUBE',
+        r'G\s*Tube',
+        r'gastrostomy',
+        r'Gastrostomy',
+        r'GASTROSTOMY',
+        r'peg\s*tube',
+        r'PEG\s*TUBE',
+        r'Peg\s*Tube',
+        r'jejunostomy',
+        r'Jejunostomy',
+        r'JEJUNOSTOMY',
+        r'j\s*tube',
+        r'J\s*TUBE',
+        r'J\s*Tube',
+        r'nasogastric',
+        r'Nasogastric',
+        r'NASOGASTRIC',
+        r'ng\s*tube',
+        r'NG\s*TUBE',
+        r'Ng\s*Tube',
+        r'enteral\s+nutrition',
+        r'Enteral\s+Nutrition',
+        r'ENTERAL\s+NUTRITION',
+        r'tube\s+feeding',
+        r'Tube\s+Feeding',
+        r'TUBE\s+FEEDING',
+        r'gastric\s+tube',
+        r'Gastric\s+Tube',
+        r'GASTRIC\s+TUBE',
+        
+        # Additional variations
+        r'feeding\s+tube\s+managed',
+        r'feeding\s+tube\s+management',
+        r'via\s+feeding\s+tube',
+        r'feeding\s+tube\s+for',
+        r'feeding\s+tube\s+related',
+        r'feeding\s+tube\s+complications',
+        r'feeding\s+tube\s+monitoring'
+    ]
+    
+    # Look for these patterns in the text (case insensitive)
+    for pattern in feeding_tube_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            if debug:
+                print(f"✅ [FEEDING TUBE] Found feeding tube indicator: {pattern}")
+            return True
+    
+    if debug:
+        print(f"❌ [FEEDING TUBE] No feeding tube indicators found")
+    
+    return False
+
 def extract_fluid_targets_ml(text: str, debug=False) -> List[int]:
     """
     Find ALL 'FLUID TARGET' values followed by numbers (ml or mL). Return list of integer mL values.
@@ -269,10 +341,11 @@ def extract_fluid_targets_ml(text: str, debug=False) -> List[int]:
     
     return unique_targets
 
-def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, Optional[int], str]]:
-    """Process PDF and return list of (name, ml_goal, page_info) tuples for ALL residents found."""
+def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, Optional[int], str, bool]]:
+    """Process PDF and return list of (name, ml_goal, page_info, has_feeding_tube) tuples for ALL residents found."""
     pages = read_pdf_pages(path)
     resident_targets = {}  # Dictionary to store resident -> target mapping
+    resident_feeding_tubes = {}  # Dictionary to store resident -> feeding tube status
     all_names_found = []  # Track all names found for debugging
     
     if debug:
@@ -283,6 +356,7 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
     for page_num, page_text in enumerate(pages, 1):
         names = extract_resident_names(page_text, debug=debug and page_num <= 3)
         targets = extract_fluid_targets_ml(page_text, debug=debug and page_num <= 3)  # Debug first few pages
+        has_feeding_tube = extract_feeding_tube_info(page_text, debug=debug and page_num <= 3)
         
         # Track all names found for debugging
         all_names_found.extend(names)
@@ -291,6 +365,7 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
             print(f"\n--- Page {page_num} ---")
             print(f"Names found: {names}")
             print(f"Targets found: {targets}")
+            print(f"Has feeding tube: {has_feeding_tube}")
         
         if names and targets:
             # Found both names and targets on this page - associate them
@@ -301,6 +376,13 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
                     resident_targets[name] = main_target
                     if debug:
                         print(f"Associated {name} with target {main_target}")
+        
+        # Check for feeding tube information
+        if names and has_feeding_tube:
+            for name in names:
+                resident_feeding_tubes[name] = True
+                if debug:
+                    print(f"Associated {name} with feeding tube")
         
         # Second pass: For pages with names but no targets, try to find hydration info in nearby pages
         elif names and not targets:
@@ -362,7 +444,8 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
             if name not in seen_residents:
                 seen_residents.add(name)
                 target_ml = resident_targets.get(name, None)
-                all_residents.append((name, target_ml, f"Page {page_num}"))
+                has_feeding_tube = resident_feeding_tubes.get(name, False)
+                all_residents.append((name, target_ml, f"Page {page_num}", has_feeding_tube))
                 
                 if debug and target_ml is None:
                     print(f"WARNING: No hydration target found for {name} on page {page_num}")
@@ -372,13 +455,14 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
         print(f"\nTotal residents found: {len(all_residents)}")
         print(f"Residents with targets: {len([r for r in all_residents if r[1] is not None])}")
         print(f"Residents without targets: {len([r for r in all_residents if r[1] is None])}")
+        print(f"Residents with feeding tubes: {len([r for r in all_residents if r[3]])}")
         print(f"Total names found across all pages: {len(set(all_names_found))}")
         print(f"Unique names found: {list(set(all_names_found))[:10]}...")  # Show first 10 names
         print("=== END PROCESSING ===\n")
     
     return all_residents
 
-rows: List[Tuple[str, Optional[int], str]] = []  # (Resident Name, mL Goal, Source File)
+rows: List[Tuple[str, Optional[int], str, bool]] = []  # (Resident Name, mL Goal, Source File, Has Feeding Tube)
 
 for pdf_path in CARE_PLAN_FILES:
     if os.path.exists(pdf_path):
@@ -388,22 +472,22 @@ for pdf_path in CARE_PLAN_FILES:
             residents = process_care_plan_comprehensive(pdf_path, debug=debug_mode)
             if residents:
                 # Add all residents found
-                for name, ml, page_info in residents:
-                    rows.append((name, ml, f"{os.path.basename(pdf_path)} - {page_info}"))
+                for name, ml, page_info, has_feeding_tube in residents:
+                    rows.append((name, ml, f"{os.path.basename(pdf_path)} - {page_info}", has_feeding_tube))
             else:
-                rows.append(("", None, os.path.basename(pdf_path) + " (no residents found)"))
+                rows.append(("", None, os.path.basename(pdf_path) + " (no residents found)", False))
         except Exception as e:
-            rows.append(("", None, os.path.basename(pdf_path) + f" (error: {e})"))
+            rows.append(("", None, os.path.basename(pdf_path) + f" (error: {e})", False))
     else:
-        rows.append(("", None, os.path.basename(pdf_path) + " (not found)"))
+        rows.append(("", None, os.path.basename(pdf_path) + " (not found)", False))
 
 # Write CSV
 out_path = "hydration_goals.csv"
 with open(out_path, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
-    writer.writerow(["Resident Name", "mL Goal", "Source File"])
+    writer.writerow(["Resident Name", "mL Goal", "Source File", "Has Feeding Tube"])
     for r in rows:
-        writer.writerow([r[0], r[1] if r[1] is not None else "", r[2]])
+        writer.writerow([r[0], r[1] if r[1] is not None else "", r[2], "Yes" if r[3] else "No"])
 
 print(f"Processed {len(rows)} entries and saved to {out_path}")
 out_path

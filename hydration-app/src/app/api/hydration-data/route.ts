@@ -87,6 +87,9 @@ export async function POST(request: NextRequest) {
             case 'Yesterdays':
               resident.yesterday = parseFloat(value) || 0;
               break;
+            case 'Has Feeding Tube':
+              resident.hasFeedingTube = value === 'Yes';
+              break;
           }
         });
         
