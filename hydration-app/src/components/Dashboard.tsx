@@ -93,8 +93,8 @@ export default function Dashboard() {
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
                 style={{ backgroundColor: '#0cc7ed' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#0aa8c7'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#0cc7ed'}
+                onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#0aa8c7'}
+                onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#0cc7ed'}
               >
                 Logout
               </button>

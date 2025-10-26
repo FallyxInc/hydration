@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface HydrationDataProps {
   userRole?: 'admin' | 'home_manager' | null;
@@ -36,15 +36,6 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
   const [showFeedingTubePopup, setShowFeedingTubePopup] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchHydrationData();
-    loadSavedComments();
-  }, []);
-
-  useEffect(() => {
-    filterResidents();
-  }, [residents, selectedUnit, dateRange]);
-
   const loadSavedComments = () => {
     try {
       const savedComments = localStorage.getItem('residentComments');
@@ -64,7 +55,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     }
   };
 
-  const fetchHydrationData = async () => {
+  const fetchHydrationData = useCallback(async () => {
     console.log('🚀 [HYDRATION DATA COMPONENT] Starting data fetch...');
     console.log('📊 [HYDRATION DATA COMPONENT] Request parameters:', { userRole, retirementHome });
     
@@ -108,7 +99,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       setLoading(false);
       console.log('🏁 [HYDRATION DATA COMPONENT] Data fetch completed');
     }
-  };
+  }, [userRole, retirementHome, residentComments]);
 
   const getGoalStatus = (goal: number, yesterday: number) => {
     if (goal === 0) return 'No goal set';
@@ -134,7 +125,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     return validDays.length > 0 ? Math.round(validDays.reduce((sum, day) => sum + day, 0) / validDays.length) : 0;
   };
 
-  const filterResidents = () => {
+  const filterResidents = useCallback(() => {
     let filtered = [...residents];
     
     // Filter by unit
@@ -143,7 +134,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     }
     
     setFilteredResidents(filtered);
-  };
+  }, [residents, selectedUnit]);
 
   const handleCommentChange = (residentName: string, comment: string) => {
     setEditingComments(prev => ({
@@ -337,6 +328,15 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     return yesterday >= goal ? 'text-green-600' : 'text-red-600';
   };
 
+  useEffect(() => {
+    fetchHydrationData();
+    loadSavedComments();
+  }, [fetchHydrationData]);
+
+  useEffect(() => {
+    filterResidents();
+  }, [filterResidents, dateRange]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -482,7 +482,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             <div>
               <h3 className="text-xl leading-6 font-bold text-gray-900">Resident Hydration Data</h3>
               <p className="mt-2 text-sm text-gray-600">
-                Detailed view of all residents' hydration goals and consumption
+                Detailed view of all residents&apos; hydration goals and consumption
               </p>
             </div>
             

@@ -105,8 +105,8 @@ export default function UserManagement() {
           onClick={() => setShowForm(true)}
           className="text-white px-4 py-2 rounded-md text-sm font-medium"
           style={{ backgroundColor: '#0cc7ed' }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#0aa8c7'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#0cc7ed'}
+          onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#0aa8c7'}
+          onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#0cc7ed'}
         >
           Add New User
         </button>
@@ -141,12 +141,12 @@ export default function UserManagement() {
                   '--tw-border-color': '#0cc7ed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#0cc7ed';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLInputElement).style.boxShadow = 'none';
                 }}
                 placeholder="Enter full name"
                 required
@@ -168,12 +168,12 @@ export default function UserManagement() {
                   '--tw-border-color': '#0cc7ed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#0cc7ed';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLInputElement).style.boxShadow = 'none';
                 }}
                 placeholder="Enter email address"
                 required
@@ -195,12 +195,12 @@ export default function UserManagement() {
                   '--tw-border-color': '#0cc7ed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#0cc7ed';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLInputElement).style.boxShadow = 'none';
                 }}
                 placeholder="Enter password"
                 required
@@ -221,12 +221,12 @@ export default function UserManagement() {
                   '--tw-border-color': '#0cc7ed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#0cc7ed';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLSelectElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLSelectElement).style.boxShadow = 'none';
                 }}
               >
                 <option value="home_manager">Home Manager</option>
@@ -249,12 +249,12 @@ export default function UserManagement() {
                   '--tw-border-color': '#0cc7ed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#0cc7ed';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLInputElement).style.boxShadow = 'none';
                 }}
                 placeholder="e.g., Sunset Manor, Golden Years, etc."
                 required

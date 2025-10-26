@@ -129,8 +129,8 @@ export default function FileUpload({}: FileUploadProps) {
                     htmlFor="carePlan"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
                     style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => e.target.style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => e.target.style.color = '#0cc7ed'}
+                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
+                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
                   >
                     <span>Upload a file</span>
                     <input
@@ -185,8 +185,8 @@ export default function FileUpload({}: FileUploadProps) {
                     htmlFor="hydrationData"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
                     style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => e.target.style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => e.target.style.color = '#0cc7ed'}
+                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
+                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
                   >
                     <span>Upload a file</span>
                     <input
@@ -232,12 +232,12 @@ export default function FileUpload({}: FileUploadProps) {
                 '--tw-border-color': '#0cc7ed'
               } as React.CSSProperties}
               onFocus={(e) => {
-                e.target.style.borderColor = '#0cc7ed';
-                e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLSelectElement).style.borderColor = '#0cc7ed';
+                (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#d1d5db';
-                e.target.style.boxShadow = 'none';
+                (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
+                (e.target as HTMLSelectElement).style.boxShadow = 'none';
               }}
             >
               <option value="">Select a retirement home...</option>

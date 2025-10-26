@@ -6,9 +6,43 @@ export async function POST(request: NextRequest) {
   console.log('🚀 [HYDRATION DATA API] Starting hydration data request...');
   
   try {
-    const { userRole, retirementHome } = await request.json();
+    console.log('📊 [HYDRATION DATA API] Request headers:', Object.fromEntries(request.headers.entries()));
+    console.log('📊 [HYDRATION DATA API] Request method:', request.method);
+    console.log('📊 [HYDRATION DATA API] Request URL:', request.url);
     
-    console.log('📊 [HYDRATION DATA API] Request parameters:', { userRole, retirementHome });
+    let userRole, retirementHome;
+    
+    // Try to parse as JSON first
+    try {
+      const body = await request.json();
+      userRole = body.userRole;
+      retirementHome = body.retirementHome;
+      console.log('📊 [HYDRATION DATA API] Request body parsed as JSON successfully:', { userRole, retirementHome });
+    } catch (jsonError) {
+      console.log('📊 [HYDRATION DATA API] JSON parsing failed, trying form data...');
+      
+      // If JSON fails, try form data
+      try {
+        const formData = await request.formData();
+        userRole = formData.get('userRole') as string;
+        retirementHome = formData.get('retirementHome') as string;
+        console.log('📊 [HYDRATION DATA API] Request body parsed as form data successfully:', { userRole, retirementHome });
+      } catch (formError) {
+        console.error('❌ [HYDRATION DATA API] Both JSON and form data parsing failed');
+        console.error('JSON Error:', jsonError);
+        console.error('Form Error:', formError);
+        
+        // Get raw body for debugging
+        const rawBody = await request.text();
+        console.log('📊 [HYDRATION DATA API] Raw request body:', rawBody);
+        
+        return NextResponse.json({ 
+          error: 'Invalid request body format',
+          details: 'Could not parse as JSON or form data',
+          rawBody: rawBody.substring(0, 200) + '...' // First 200 chars for debugging
+        }, { status: 400 });
+      }
+    }
     
     // Determine data source based on user role
     let csvPath: string;
