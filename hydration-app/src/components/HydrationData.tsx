@@ -32,14 +32,37 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [dateRange, setDateRange] = useState<number>(3);
   const [residentComments, setResidentComments] = useState<{[key: string]: string}>({});
+  const [editingComments, setEditingComments] = useState<{[key: string]: string}>({});
+  const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
+  const [showFeedingTubePopup, setShowFeedingTubePopup] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHydrationData();
+    loadSavedComments();
   }, []);
 
   useEffect(() => {
     filterResidents();
   }, [residents, selectedUnit, dateRange]);
+
+  const loadSavedComments = () => {
+    try {
+      const savedComments = localStorage.getItem('residentComments');
+      if (savedComments) {
+        setResidentComments(JSON.parse(savedComments));
+      }
+    } catch (error) {
+      console.error('Error loading saved comments:', error);
+    }
+  };
+
+  const saveCommentsToStorage = (comments: {[key: string]: string}) => {
+    try {
+      localStorage.setItem('residentComments', JSON.stringify(comments));
+    } catch (error) {
+      console.error('Error saving comments to localStorage:', error);
+    }
+  };
 
   const fetchHydrationData = async () => {
     console.log('🚀 [HYDRATION DATA COMPONENT] Starting data fetch...');
@@ -68,7 +91,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         console.log(`✅ [HYDRATION DATA COMPONENT] Successfully fetched ${data.residents?.length || 0} residents`);
         const processedResidents = (data.residents || []).map((resident: any) => ({
           ...resident,
-          unit: extractUnitFromName(resident.name),
+          unit: extractUnitFromSource(resident.source),
           averageIntake: calculateAverageIntake(resident),
           hasFeedingTube: resident.hasFeedingTube || false,
           comments: residentComments[resident.name] || ''
@@ -97,10 +120,12 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     return name.replace(/\s+No Middle Name\s*/gi, ' ').trim();
   };
 
-  const extractUnitFromName = (name: string) => {
-    // Extract unit from name patterns like "Unit 2A" or "Floor 3"
-    const unitMatch = name.match(/(?:Unit|Floor)\s*(\d+[A-Z]?)/i);
-    return unitMatch ? unitMatch[1] : 'Unknown';
+  const extractUnitFromSource = (source: string) => {
+    // Extract unit from PDF filename, remove .pdf extension and everything after it
+    if (!source) return 'Unknown';
+    // Remove .pdf and everything after it (like " - Page XX")
+    const filename = source.replace(/\.pdf.*$/i, '');
+    return filename || 'Unknown';
   };
 
   const calculateAverageIntake = (resident: any) => {
@@ -121,10 +146,75 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   };
 
   const handleCommentChange = (residentName: string, comment: string) => {
-    setResidentComments(prev => ({
+    setEditingComments(prev => ({
       ...prev,
       [residentName]: comment
     }));
+  };
+
+  const handleSaveComment = async (residentName: string) => {
+    setSavingComments(prev => ({ ...prev, [residentName]: true }));
+    
+    try {
+      // Simulate API call - in a real app, you'd save to a backend
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const newComments = {
+        ...residentComments,
+        [residentName]: editingComments[residentName] || ''
+      };
+      
+      // Update state
+      setResidentComments(newComments);
+      
+      // Save to localStorage
+      saveCommentsToStorage(newComments);
+      
+      // Clear editing state
+      setEditingComments(prev => ({
+        ...prev,
+        [residentName]: ''
+      }));
+      
+      console.log('Comment saved for', residentName, ':', editingComments[residentName]);
+    } catch (error) {
+      console.error('Error saving comment:', error);
+    } finally {
+      setSavingComments(prev => ({ ...prev, [residentName]: false }));
+    }
+  };
+
+  const handleEditComment = (residentName: string) => {
+    setEditingComments(prev => ({
+      ...prev,
+      [residentName]: residentComments[residentName] || ''
+    }));
+  };
+
+  const handleCancelEdit = (residentName: string) => {
+    setEditingComments(prev => ({
+      ...prev,
+      [residentName]: ''
+    }));
+  };
+
+  const handleDeleteComment = (residentName: string) => {
+    const newComments = { ...residentComments };
+    delete newComments[residentName];
+    
+    setResidentComments(newComments);
+    saveCommentsToStorage(newComments);
+    
+    console.log('Comment deleted for', residentName);
+  };
+
+  const handleFeedingTubeClick = (residentName: string) => {
+    console.log('Feeding tube button clicked for:', residentName);
+    setShowFeedingTubePopup(residentName);
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+      setShowFeedingTubePopup(null);
+    }, 2000);
   };
 
   const getUniqueUnits = () => {
@@ -458,9 +548,6 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                   Resident Name
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Unit
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Goal (mL)
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -492,21 +579,33 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredResidents.map((resident, index) => (
                 <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900 w-64 min-w-64">
-                    <div className="flex items-center space-x-2">
-                      <div className="truncate" title={cleanResidentName(resident.name)}>
-                        {cleanResidentName(resident.name)}
-                      </div>
+              <td className="px-6 py-4 text-sm font-medium text-gray-900 w-64 min-w-64">
+                <div className="flex items-center space-x-2">
+                  <div className="truncate" title={cleanResidentName(resident.name)}>
+                    <div className="font-medium text-gray-900">
+                      {cleanResidentName(resident.name)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 flex items-center space-x-2">
+                      <span>{resident.unit || 'Unknown'}</span>
                       {resident.hasFeedingTube && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800" title="Has Feeding Tube">
-                          🥤
-                        </span>
+                        <div className="relative inline-block">
+                          <button
+                            onClick={() => handleFeedingTubeClick(resident.name)}
+                            className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-600 text-xs transition-colors"
+                          >
+                            🥤
+                          </button>
+                          {showFeedingTubePopup === resident.name && (
+                            <div className="absolute top-6 left-0 bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded shadow-sm border border-gray-200 z-50 whitespace-nowrap">
+                              Feeding tube used
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {resident.unit}
-                  </td>
+                  </div>
+                </div>
+              </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.goal}
                   </td>
@@ -517,12 +616,23 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                     {resident.averageIntake || 0}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${
-                      resident.goal === 0 ? 'text-gray-400' : 
-                      resident.yesterday >= resident.goal ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {getGoalStatus(resident.goal, resident.yesterday)}
-                    </span>
+                    <div className="flex flex-col space-y-2">
+                      {/* Progress Bar */}
+                      <div className="w-full">
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="h-3 rounded-full bg-gradient-to-r from-blue-300 to-blue-600 transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min((resident.day16 / resident.goal) * 100, 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                      {/* Percentage Text */}
+                      <div className="text-xs font-medium text-gray-600 text-center">
+                        {resident.goal === 0 ? 'N/A' : `${Math.min(Math.round((resident.day16 / resident.goal) * 100), 100)}%`}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.day14}
@@ -542,14 +652,51 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       {resident.missed3Days === 'yes' ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 w-80 min-w-80">
-                    <textarea
-                      value={residentComments[resident.name] || ''}
-                      onChange={(e) => handleCommentChange(resident.name, e.target.value)}
-                      placeholder="Add comment..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                      rows={2}
-                    />
+                  <td className="px-6 py-4 w-60 min-w-60">
+                    <div className="space-y-1">
+                      {/* Display saved comment or editing area */}
+                      {residentComments[resident.name] && !editingComments[resident.name] ? (
+                        <div className="space-y-1">
+                          <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group">
+                            {residentComments[resident.name]}
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
+                              <button
+                                onClick={() => handleEditComment(resident.name)}
+                                className="text-cyan-600 hover:text-cyan-700 text-xs"
+                                title="Edit comment"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(resident.name)}
+                                className="text-red-500 hover:text-red-600 text-xs"
+                                title="Delete comment"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <textarea
+                            value={editingComments[resident.name] || ''}
+                            onChange={(e) => handleCommentChange(resident.name, e.target.value)}
+                            placeholder="Add comment..."
+                            className="w-full px-2 py-1 pr-8 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
+                            rows={2}
+                          />
+                          <button
+                            onClick={() => handleSaveComment(resident.name)}
+                            disabled={savingComments[resident.name] || !editingComments[resident.name]?.trim()}
+                            className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-300 text-white text-xs rounded flex items-center justify-center transition-colors"
+                            title="Save comment"
+                          >
+                            {savingComments[resident.name] ? '⏳' : '✓'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
