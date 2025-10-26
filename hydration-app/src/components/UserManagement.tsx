@@ -100,10 +100,13 @@ export default function UserManagement() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">User Management</h3>
+        <h3 className="text-base leading-6 font-medium text-gray-900">User Management</h3>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          className="text-white px-4 py-2 rounded-md text-sm font-medium"
+          style={{ backgroundColor: '#0cc7ed' }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#0aa8c7'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#0cc7ed'}
         >
           Add New User
         </button>
@@ -121,7 +124,7 @@ export default function UserManagement() {
       {/* Add User Form */}
       {showForm && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Add New User</h4>
+          <h4 className="text-base font-medium text-gray-900 mb-4">Add New User</h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -132,7 +135,19 @@ export default function UserManagement() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                style={{ 
+                  '--tw-ring-color': '#0cc7ed',
+                  '--tw-border-color': '#0cc7ed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0cc7ed';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
                 placeholder="Enter full name"
                 required
               />
@@ -147,7 +162,19 @@ export default function UserManagement() {
                 id="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                style={{ 
+                  '--tw-ring-color': '#0cc7ed',
+                  '--tw-border-color': '#0cc7ed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0cc7ed';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
                 placeholder="Enter email address"
                 required
               />
@@ -162,7 +189,19 @@ export default function UserManagement() {
                 id="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                style={{ 
+                  '--tw-ring-color': '#0cc7ed',
+                  '--tw-border-color': '#0cc7ed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0cc7ed';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
                 placeholder="Enter password"
                 required
               />
@@ -176,7 +215,19 @@ export default function UserManagement() {
                 id="role"
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'home_manager' })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                style={{ 
+                  '--tw-ring-color': '#0cc7ed',
+                  '--tw-border-color': '#0cc7ed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0cc7ed';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
               >
                 <option value="home_manager">Home Manager</option>
                 <option value="admin">Admin</option>
@@ -192,7 +243,19 @@ export default function UserManagement() {
                 id="retirementHome"
                 value={formData.retirementHome}
                 onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base"
+                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                style={{ 
+                  '--tw-ring-color': '#0cc7ed',
+                  '--tw-border-color': '#0cc7ed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0cc7ed';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
                 placeholder="e.g., Sunset Manor, Golden Years, etc."
                 required
               />
@@ -209,7 +272,18 @@ export default function UserManagement() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                className="text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: '#0cc7ed' }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#0aa8c7';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#0cc7ed';
+                  }
+                }}
               >
                 {loading ? 'Creating...' : 'Create User'}
               </button>
@@ -221,7 +295,7 @@ export default function UserManagement() {
       {/* Users Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">All Users</h3>
+          <h3 className="text-base leading-6 font-medium text-gray-900">All Users</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">

@@ -376,7 +376,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               <div className="ml-4">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500">Total Residents</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{residents.length}</dd>
+                  <dd className="text-xl font-bold text-gray-900">{residents.length}</dd>
                 </dl>
               </div>
             </div>
@@ -392,7 +392,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               <div className="ml-4">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500">Goal Met Today</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{goalMetCount}</dd>
+                  <dd className="text-xl font-bold text-gray-900">{goalMetCount}</dd>
                 </dl>
               </div>
             </div>
@@ -409,7 +409,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               <div className="ml-4">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500">Missed 3 Days</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{missed3DaysCount}</dd>
+                  <dd className="text-xl font-bold text-gray-900">{missed3DaysCount}</dd>
                 </dl>
               </div>
             </div>
@@ -425,7 +425,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               <div className="ml-4">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500">Goal Met %</dt>
-                  <dd className={`text-2xl font-bold ${
+                  <dd className={`text-xl font-bold ${
                     parseFloat(goalMetPercentage) < 20 ? 'text-red-500' :
                     parseFloat(goalMetPercentage) < 40 ? 'text-yellow-500' :
                     parseFloat(goalMetPercentage) < 60 ? 'text-yellow-400' :
@@ -480,7 +480,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         <div className="px-6 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-2xl leading-6 font-bold text-gray-900">Resident Hydration Data</h3>
+              <h3 className="text-xl leading-6 font-bold text-gray-900">Resident Hydration Data</h3>
               <p className="mt-2 text-sm text-gray-600">
                 Detailed view of all residents' hydration goals and consumption
               </p>

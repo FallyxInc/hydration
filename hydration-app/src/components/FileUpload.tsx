@@ -99,7 +99,7 @@ export default function FileUpload({}: FileUploadProps) {
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-6">
+        <h3 className="text-base leading-6 font-medium text-gray-900 mb-6">
           Upload Hydration Files
         </h3>
         
@@ -127,7 +127,10 @@ export default function FileUpload({}: FileUploadProps) {
                 <div className="flex text-sm text-gray-600">
                   <label
                     htmlFor="carePlan"
-                    className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+                    className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
+                    style={{ color: '#0cc7ed' }}
+                    onMouseEnter={(e) => e.target.style.color = '#0aa8c7'}
+                    onMouseLeave={(e) => e.target.style.color = '#0cc7ed'}
                   >
                     <span>Upload a file</span>
                     <input
@@ -180,7 +183,10 @@ export default function FileUpload({}: FileUploadProps) {
                 <div className="flex text-sm text-gray-600">
                   <label
                     htmlFor="hydrationData"
-                    className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+                    className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
+                    style={{ color: '#0cc7ed' }}
+                    onMouseEnter={(e) => e.target.style.color = '#0aa8c7'}
+                    onMouseLeave={(e) => e.target.style.color = '#0cc7ed'}
                   >
                     <span>Upload a file</span>
                     <input
@@ -220,7 +226,19 @@ export default function FileUpload({}: FileUploadProps) {
               name="retirementHome"
               value={selectedRetirementHome}
               onChange={(e) => setSelectedRetirementHome(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-base bg-white"
+              className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white"
+              style={{ 
+                '--tw-ring-color': '#0cc7ed',
+                '--tw-border-color': '#0cc7ed'
+              } as React.CSSProperties}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#0cc7ed';
+                e.target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
             >
               <option value="">Select a retirement home...</option>
               <option value="Sunset Manor">Sunset Manor</option>
@@ -237,7 +255,18 @@ export default function FileUpload({}: FileUploadProps) {
             <button
               type="submit"
               disabled={loading || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedRetirementHome}
-              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+              style={{ backgroundColor: '#0cc7ed' }}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.disabled) {
+                  e.currentTarget.style.backgroundColor = '#0aa8c7';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!e.currentTarget.disabled) {
+                  e.currentTarget.style.backgroundColor = '#0cc7ed';
+                }
+              }}
             >
               {loading ? 'Processing...' : 'Process Files'}
             </button>

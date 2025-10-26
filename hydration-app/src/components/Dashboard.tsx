@@ -80,7 +80,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900">
                 {userRole === 'admin' ? 'Hydration Dashboard' : `${retirementHome} - Hydration Data`}
               </h1>
             </div>
@@ -91,7 +91,10 @@ export default function Dashboard() {
               </span>
               <button
                 onClick={handleLogout}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+                style={{ backgroundColor: '#0cc7ed' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#0aa8c7'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#0cc7ed'}
               >
                 Logout
               </button>

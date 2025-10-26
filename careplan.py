@@ -67,150 +67,34 @@ def read_pdf_pages(path: str) -> List[str]:
     except Exception:
         return [read_pdf_text(path)]
 
-def is_likely_real_name(name: str) -> bool:
+def extract_resident_names(text: str) -> List[str]:
     """
-    Strict validation to ensure this is actually a person's name.
-    """
-    name_lower = name.lower()
-    
-    # Must have comma (LASTNAME, FIRSTNAME format)
-    if ',' not in name:
-        return False
-    
-    # Split into parts
-    parts = name.split(',')
-    if len(parts) != 2:
-        return False
-    
-    last_name = parts[0].strip()
-    first_name = parts[1].strip()
-    
-    # Both parts must exist and be reasonable length
-    if len(last_name) < 2 or len(first_name) < 2:
-        return False
-    
-    # Must not be too long (real names aren't 50+ characters)
-    if len(name) > 50:
-        return False
-    
-    # Must not contain medical/condition keywords
-    medical_keywords = [
-        'chf', 'dm', 'copd', 'htn', 'diabetes', 'hypertension', 'asthma', 'pneumonia',
-        'wheezing', 'cough', 'fever', 'pain', 'ache', 'swelling', 'bleeding',
-        'infection', 'bacteria', 'virus', 'fungal', 'allergic', 'reaction',
-        'medication', 'drug', 'pill', 'tablet', 'capsule', 'injection', 'dose',
-        'therapy', 'treatment', 'procedure', 'surgery', 'operation',
-        'hymn', 'sing', 'song', 'music', 'prayer', 'religious',
-        'bullous', 'pemphigoid', 'dermatitis', 'rash', 'skin',
-        'cardiac', 'respiratory', 'neurological', 'gastrointestinal',
-        'renal', 'hepatic', 'pulmonary', 'vascular', 'endocrine',
-        'sob', 'and', 'wheezing', 'hymn', 'sing', 'chf', 'dm'
-    ]
-    
-    if any(keyword in name_lower for keyword in medical_keywords):
-        return False
-    
-    # Must not contain common non-name words
-    non_name_words = [
-        'admission', 'date', 'facility', 'location', 'print', 'report', 'generated',
-        'resident', 'list', 'care', 'plan', 'assessment', 'evaluation',
-        'medication', 'prescription', 'dosage', 'schedule', 'routine',
-        'morning', 'evening', 'night', 'daily', 'weekly', 'monthly',
-        'breakfast', 'lunch', 'dinner', 'snack', 'meal', 'food',
-        'bathroom', 'shower', 'dressing', 'grooming', 'hygiene',
-        'exercise', 'therapy', 'rehabilitation', 'mobility', 'walking'
-    ]
-    
-    if any(word in name_lower for word in non_name_words):
-        return False
-    
-    # Must look like proper names (capitalized, reasonable length)
-    if not re.match(r'^[A-Z][a-z]+,\s+[A-Z][a-z]+', name):
-        return False
-    
-    # Must not contain numbers (except in the ID part which we already extracted)
-    if re.search(r'\d', name):
-        return False
-    
-    # Must not be all caps (real names have proper capitalization)
-    if name.isupper():
-        return False
-    
-    return True
-
-def extract_resident_names(text: str, debug=False) -> List[str]:
-    """
-    Find ONLY actual resident names with strict filtering.
-    Only looks for names with ID numbers in parentheses - the most reliable pattern.
+    Find ALL resident names in text - capture the FULL name including all parts.
+    Handles various name formats with ID numbers in parentheses.
+    Uses simple, reliable extraction from careplan_test.py
     """
     names = []
     
-    if debug:
-        print(f"🔍 Extracting names from text (length: {len(text)})")
-    
-    # Pattern 1: Strict format "LASTNAME, FIRSTNAME (ID)" with 4+ digit ID
+    # Pattern 1: Standard format "LASTNAME, FIRSTNAME (ID)" - flexible ID length (4+ digits)
     for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s+[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
-        
-        # Clean up the name format
-        name = re.sub(r'\s+', ' ', name)  # Normalize whitespace
-        
-        # STRICT filtering - only allow if it looks like a real person's name
-        if is_likely_real_name(name):
+        # Skip if the name starts with "Admission Date" or other non-name patterns
+        if not any(skip_word in name for skip_word in ["Admission Date", "Facility", "Location", "Print Date"]):
             names.append(name)
-            if debug:
-                print(f"✅ Added resident (with ID): {name}")
-        else:
-            if debug:
-                print(f"❌ Filtered out (with ID): {name}")
     
-    # Pattern 2: More flexible format "LASTNAME, FIRSTNAME" without ID requirement
-    # This catches residents that don't have ID numbers, but with stricter filtering
-    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s+[A-Z][A-Za-z\s\'-]+)(?:\s*\([^)]*\))?", text):
+    # Pattern 2: Alternative format "LASTNAME, FIRSTNAME (ID)" with different spacing - flexible ID length
+    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s*[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
-        
+        if not any(skip_word in name for skip_word in ["Admission Date", "Facility", "Location", "Print Date"]):
+            names.append(name)
+    
+    # Pattern 3: Handle names with multiple parts (e.g., "O'SHAUGHNESSY, RUTH") - flexible ID length
+    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,?\s+[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
+        name = m.group(1).strip().title()
         # Clean up the name format
         name = re.sub(r'\s+', ' ', name)  # Normalize whitespace
-        
-        # Skip if we already found this name with the stricter pattern
-        if name in names:
-            continue
-        
-        # Skip obvious non-person names (medical terms, activities, etc.)
-        skip_patterns = [
-            r'\b(Admission|Physician|Location|Date|Print|Regular|Diet|Texture)\b',
-            r'\b(Slapping|Kicking|Biting|Hitting|Punching|Sexual|Abuse)\b',
-            r'\b(Dementia|Depression|Anxiety|Disease|Disorder|Syndrome)\b',
-            r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Am|Pm)\b',
-            r'\b(Constipation|Osteoporosis|Hypertension|Diabetes)\b',
-            r'\b(Physical|Social|Mental|Emotional|Behavioral)\b',
-            r'\b(Supervision|Limited|Extensive|Maximal|Total)\b',
-            r'\b(Reminder|Cue|Direction|Assistance)\b',
-            r'\b(Revision|On|Off|Prn|Asa|Tegretol)\b',
-            r'\b(Penicillin|Codeine|Aspirin|Warfarin|Insulin)\b',
-            r'\b(Regular|Diet|Texture|Date|Initiated)\b',
-            r'\b(Print|Date|Resident|Has|No|Middle|Name)\b'
-        ]
-        
-        should_skip = False
-        for pattern in skip_patterns:
-            if re.search(pattern, name, re.IGNORECASE):
-                should_skip = True
-                break
-        
-        if should_skip:
-            if debug:
-                print(f"❌ Filtered out (skip pattern): {name}")
-            continue
-            
-        # STRICT filtering - only allow if it looks like a real person's name
-        if is_likely_real_name(name):
+        if not any(skip_word in name for skip_word in ["Admission Date", "Facility", "Location", "Print Date"]):
             names.append(name)
-            if debug:
-                print(f"✅ Added resident (flexible): {name}")
-        else:
-            if debug:
-                print(f"❌ Filtered out (flexible): {name}")
     
     # Remove duplicates while preserving order
     seen = set()
@@ -219,11 +103,6 @@ def extract_resident_names(text: str, debug=False) -> List[str]:
         if name not in seen:
             seen.add(name)
             unique_names.append(name)
-    
-    if debug:
-        print(f"📊 Final result: {len(unique_names)} unique residents found")
-        print(f"   Examples: {unique_names[:5]}")
-    
     return unique_names
 
 def extract_feeding_tube_info(text: str, debug=False) -> bool:
@@ -401,7 +280,7 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
     
     # First pass: Find all pages with fluid targets and associate them with residents
     for page_num, page_text in enumerate(pages, 1):
-        names = extract_resident_names(page_text, debug=debug and page_num <= 3)
+        names = extract_resident_names(page_text)
         targets = extract_fluid_targets_ml(page_text, debug=debug and page_num <= 3)  # Debug first few pages
         has_feeding_tube = extract_feeding_tube_info(page_text, debug=debug and page_num <= 3)
         
@@ -485,7 +364,7 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
     seen_residents = set()
     
     for page_num, page_text in enumerate(pages, 1):
-        names = extract_resident_names(page_text, debug=debug and page_num <= 3)
+        names = extract_resident_names(page_text)
         
         for name in names:
             if name not in seen_residents:
@@ -515,7 +394,7 @@ for pdf_path in CARE_PLAN_FILES:
     if os.path.exists(pdf_path):
         try:
             # Enable debugging for the first PDF to see what's happening (disabled for production)
-            debug_mode = True  # pdf_path == CARE_PLAN_FILES[0]
+            debug_mode = False  # Set to True for debugging
             residents = process_care_plan_comprehensive(pdf_path, debug=debug_mode)
             if residents:
                 # Add all residents found

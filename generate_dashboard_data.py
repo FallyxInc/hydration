@@ -102,7 +102,10 @@ const hydrationData = {json.dumps(residents_data, indent=12)};
     
     print(f"   - Goal met today: {goal_met}")
     print(f"   - Missed 3 days: {missed_3_days}")
-    print(f"   - Goal met percentage: {(goal_met/len(residents_data)*100):.1f}%")
+    if len(residents_data) > 0:
+        print(f"   - Goal met percentage: {(goal_met/len(residents_data)*100):.1f}%")
+    else:
+        print(f"   - Goal met percentage: 0.0%")
 
 if __name__ == "__main__":
     generate_dashboard_data()
