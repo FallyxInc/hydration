@@ -102,6 +102,15 @@ export async function POST(request: NextRequest) {
     const csvPath = join(homeDir, 'hydration_goals.csv');
     const jsDataPath = join(homeDir, 'dashboard_data.js');
 
+    // Install Python packages first
+    console.log('🐍 [PYTHON] Installing required packages...');
+    try {
+      await execAsync(`pip install --break-system-packages PyPDF2 pdfminer.six`);
+      console.log('✅ [PYTHON] Packages installed successfully');
+    } catch (error) {
+      console.log('⚠️ [PYTHON] Package installation failed, continuing anyway:', error);
+    }
+
     // Step 1: Extract care plan data
     console.log('🐍 [PYTHON] Step 1: Processing care plan...');
     console.log(`🐍 [PYTHON] Running: cd "${homeDir}" && python3 scripts/careplan.py`);
