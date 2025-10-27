@@ -216,22 +216,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   };
 
   const handleDeleteData = async () => {
-    // Temporarily disable delete functionality to prevent automatic deletion
-    console.log('🗑️ [DELETE] Delete function called - DISABLED to prevent automatic deletion');
-    return;
-    
-    // Only allow manual deletion, not automatic
-    console.log('🗑️ [DELETE] Delete function called - checking if manual trigger');
-    
-    // Add a check to prevent automatic deletion
-    const stack = new Error().stack;
-    if (stack && stack.includes('useEffect')) {
-      console.log('🗑️ [DELETE] Prevented automatic deletion from useEffect');
-      return;
-    }
-    
     if (!confirm('Are you sure you want to delete all data for this retirement home? This action cannot be undone.')) {
-      console.log('🗑️ [DELETE] User cancelled deletion');
       return;
     }
 
