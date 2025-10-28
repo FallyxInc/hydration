@@ -4,6 +4,13 @@ import { db } from '@/lib/firebase';
 
 export async function POST(request: NextRequest) {
   try {
+
+    // Check if Firebase is available
+    if (!db) {
+      return NextResponse.json({ 
+        error: 'Firebase not initialized. Please check environment variables.' 
+      }, { status: 500 });
+    }
     const { name, email, password, role, retirementHome } = await request.json();
 
     if (!email || !password || !name || !retirementHome) {
