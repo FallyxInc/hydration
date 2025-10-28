@@ -18,7 +18,8 @@ COPY . .
 RUN pip3 install --no-cache-dir PyPDF2 pdfminer.six
 
 # Build Next.js
-RUN cp .env ./hydration-app/.env
+RUN ls -la
+RUN cp ./.env ./hydration-app/.env
 RUN npm run build
 
 ENV NODE_ENV=production
