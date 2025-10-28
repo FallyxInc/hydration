@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     
     if (userRole === 'admin') {
       // Admin sees all data - use main CSV
-      csvPath = join(process.cwd(), '..', 'hydration_goals.csv');
+      csvPath = join(process.cwd(), 'hydration_goals.csv');
       console.log('👑 [HYDRATION DATA API] Admin access - using main CSV:', csvPath);
     } else if (userRole === 'home_manager' && retirementHome) {
       // Home manager sees only their home's data
