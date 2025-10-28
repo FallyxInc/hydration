@@ -33,6 +33,7 @@ if (firebaseConfig.apiKey !== 'placeholder' && firebaseConfig.projectId !== 'pla
   }
 } else {
   // Create null objects for build time
+  console.warn('Firebase initialization failed: No real config values');
   app = null;
   auth = null;
   db = null;

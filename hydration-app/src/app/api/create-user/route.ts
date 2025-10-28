@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addDoc, collection, Firestore } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, Auth } from 'firebase/auth';
+import { db, auth } from '@/lib/firebase';
 
 export async function POST(request: NextRequest) {
   try {
 
     // Check if Firebase is available
-    if (!db || db === null) {
+    if (!db || db === null || !auth || auth === null) {
       return NextResponse.json({ 
         error: 'Firebase not initialized. Please check environment variables.' 
       }, { status: 500 });
@@ -19,8 +20,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // For now, just create the user document in Firestore
-    // The actual Firebase Auth user creation should be done client-side]
+    // Create Firebase Auth user first
+    let fbauth = auth as Auth;
+    const userCredential = await createUserWithEmailAndPassword(fbauth, email, password);
+    const firebaseUser = userCredential.user;
+
+    // Then create the user document in Firestore
     let fbdb = db as Firestore;
     const userDoc = await addDoc(collection(fbdb, 'users'), {
       name,
@@ -28,8 +33,7 @@ export async function POST(request: NextRequest) {
       role,
       retirementHome,
       createdAt: new Date(),
-      // Add a flag to indicate this user needs to be created in Auth
-      needsAuthCreation: true
+      firebaseUid: firebaseUser.uid
     });
 
     return NextResponse.json({

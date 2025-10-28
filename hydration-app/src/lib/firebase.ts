@@ -18,13 +18,6 @@ let auth: Auth | null;
 let db: Firestore | null;
 let storage: FirebaseStorage | null;
 
-
-console.log("Firebase Config during deployment:");
-console.log("apiKey:", firebaseConfig.apiKey || firebaseConfig.apiKey != 'placeholder' ? "SET" : "UNDEFINED");
-console.log("authDomain:", firebaseConfig.authDomain || firebaseConfig.authDomain != 'placeholder.firebaseapp.com' ? "SET" : "UNDEFINED");
-console.log("projectId:", firebaseConfig.projectId || firebaseConfig.projectId != 'placeholder' ? "SET" : "UNDEFINED");
-console.log(firebaseConfig); // Log the full object
-
 if (firebaseConfig.apiKey !== 'placeholder' && firebaseConfig.projectId !== 'placeholder') {
   try {
     app = initializeApp(firebaseConfig);
@@ -40,6 +33,7 @@ if (firebaseConfig.apiKey !== 'placeholder' && firebaseConfig.projectId !== 'pla
   }
 } else {
   // Create null objects for build time
+  console.warn('Firebase initialization failed: No real config values');
   app = null;
   auth = null;
   db = null;
