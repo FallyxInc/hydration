@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, Firestore, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
@@ -19,7 +19,12 @@ export default function Dashboard() {
     if (!user) return;
     
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!db || db === null) {
+        console.error('Firebase not initialized. Please check environment variables.');
+        return;
+      }
+      let fbdb = db as Firestore;
+      const userDoc = await getDoc(doc(fbdb, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         console.log('User data:', userData); // Debug log
@@ -33,7 +38,7 @@ export default function Dashboard() {
       } else {
         console.log('User document not found, creating default...');
         // If user document doesn't exist, create a default one
-        await setDoc(doc(db, 'users', user.uid), {
+        await setDoc(doc(fbdb, 'users', user.uid), {
           name: user.displayName || user.email?.split('@')[0] || 'User',
           email: user.email,
           role: 'home_manager', // Default role

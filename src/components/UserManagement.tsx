@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Firestore } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface User {
@@ -32,7 +32,12 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'users'));
+      if (!db || db === null) {
+        console.error('Firebase not initialized. Please check environment variables.');
+        return;
+      }
+      let fbdb = db as Firestore;
+      const querySnapshot = await getDocs(collection(fbdb, 'users'));
       const usersData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -79,7 +84,12 @@ export default function UserManagement() {
   const handleDelete = async (userId: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
       try {
-        await deleteDoc(doc(db, 'users', userId));
+        if (!db || db === null) {
+          console.error('Firebase not initialized. Please check environment variables.');
+          return;
+        }
+        let fbdb = db as Firestore;
+        await deleteDoc(doc(fbdb, 'users', userId));
         setMessage('User deleted successfully!');
         fetchUsers();
       } catch (error) {
