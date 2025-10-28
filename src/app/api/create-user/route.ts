@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
 
     // Check if Firebase is available
-    if (!db) {
+    if (!db || db === null) {
       return NextResponse.json({ 
         error: 'Firebase not initialized. Please check environment variables.' 
       }, { status: 500 });
