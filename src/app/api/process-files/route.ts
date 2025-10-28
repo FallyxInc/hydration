@@ -102,13 +102,20 @@ export async function POST(request: NextRequest) {
     const csvPath = join(homeDir, 'hydration_goals.csv');
     const jsDataPath = join(homeDir, 'dashboard_data.js');
 
-    // Install Python packages first
+    // Install Python packages first (prefer python3 -m pip; fallback gracefully)
     console.log('🐍 [PYTHON] Installing required packages...');
     try {
-      await execAsync(`pip install --break-system-packages PyPDF2 pdfminer.six`);
-      console.log('✅ [PYTHON] Packages installed successfully');
-    } catch (error) {
-      console.log('⚠️ [PYTHON] Package installation failed, continuing anyway:', error);
+      await execAsync(`python3 -m pip install --user --break-system-packages PyPDF2 pdfminer.six`);
+      console.log('✅ [PYTHON] Packages installed successfully via python3 -m pip');
+    } catch (pipErr) {
+      console.log('⚠️ [PYTHON] python3 -m pip failed or missing, attempting ensurepip...', pipErr);
+      try {
+        await execAsync(`python3 -m ensurepip --upgrade || true`);
+        await execAsync(`python3 -m pip install --user --break-system-packages PyPDF2 pdfminer.six`);
+        console.log('✅ [PYTHON] Packages installed after bootstrapping pip');
+      } catch (error) {
+        console.log('⚠️ [PYTHON] Package installation unavailable. Proceeding; scripts may import preinstalled libs if present.', error);
+      }
     }
 
     // Step 1: Extract care plan data
