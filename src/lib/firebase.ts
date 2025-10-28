@@ -1,7 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { FirebaseApp, initializeApp } from 'firebase/app';
+import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'placeholder',
@@ -13,7 +13,10 @@ const firebaseConfig = {
 };
 
 // Only initialize Firebase if we have real config values
-let app, auth, db: Firestore | null, storage;
+let app: FirebaseApp | null;
+let auth: Auth | null;
+let db: Firestore | null;
+let storage: FirebaseStorage | null;
 
 if (firebaseConfig.apiKey !== 'placeholder' && firebaseConfig.projectId !== 'placeholder') {
   try {

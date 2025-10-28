@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  Auth,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -33,7 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (!auth || auth === null) {
+      console.error('Firebase not initialized. Please check environment variables.');
+      return;
+    }
+    let fbauth = auth as Auth;
+    const unsubscribe = onAuthStateChanged(fbauth, (user) => {
       setUser(user);
       setLoading(false);
     });
@@ -42,15 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    if (!auth || auth === null) {
+      console.error('Firebase not initialized. Please check environment variables.');
+      return;
+    }
+    let fbauth = auth as Auth;
+    await signInWithEmailAndPassword(fbauth, email, password);
   };
 
   const signUp = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    if (!auth || auth === null) {
+      console.error('Firebase not initialized. Please check environment variables.');
+      return;
+    }
+    let fbauth = auth as Auth;
+    await createUserWithEmailAndPassword(fbauth, email, password);
   };
 
   const logout = async () => {
-    await signOut(auth);
+    if (!auth || auth === null) {
+      console.error('Firebase not initialized. Please check environment variables.');
+      return;
+    }
+    let fbauth = auth as Auth;
+    await signOut(fbauth);
   };
 
   const value = {
