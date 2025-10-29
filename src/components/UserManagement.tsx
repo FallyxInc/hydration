@@ -30,6 +30,7 @@ export default function UserManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionRef = useRef<boolean>(false);
   const [submissionInProgress, setSubmissionInProgress] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -295,38 +296,56 @@ export default function UserManagement() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <input
-                type="password"
-                id="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className={`mt-1 block w-full px-4 py-3 text-gray-900 rounded-md shadow-sm text-base ${
-                  formData.password.length > 0 && formData.password.length < 6 
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                    : 'border-gray-300 focus:border-cyan-500 focus:ring-cyan-500'
-                }`}
-                style={{ 
-                  '--tw-ring-color': formData.password.length > 0 && formData.password.length < 6 ? '#ef4444' : '#0cc7ed',
-                  '--tw-border-color': formData.password.length > 0 && formData.password.length < 6 ? '#ef4444' : '#0cc7ed'
-                } as React.CSSProperties}
-                onFocus={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  if (formData.password.length > 0 && formData.password.length < 6) {
-                    target.style.borderColor = '#ef4444';
-                    target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
-                  } else {
-                    target.style.borderColor = '#0cc7ed';
-                    target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
-                  }
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
-                  (e.target as HTMLInputElement).style.boxShadow = 'none';
-                }}
-                placeholder="Enter password (minimum 6 characters)"
-                required
-                minLength={6}
-              />
+              <div className="mt-1 relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className={`block w-full px-4 py-3 pr-10 text-gray-900 rounded-md shadow-sm text-base ${
+                    formData.password.length > 0 && formData.password.length < 6 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-cyan-500 focus:ring-cyan-500'
+                  }`}
+                  style={{ 
+                    '--tw-ring-color': formData.password.length > 0 && formData.password.length < 6 ? '#ef4444' : '#0cc7ed',
+                    '--tw-border-color': formData.password.length > 0 && formData.password.length < 6 ? '#ef4444' : '#0cc7ed'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    if (formData.password.length > 0 && formData.password.length < 6) {
+                      target.style.borderColor = '#ef4444';
+                      target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                    } else {
+                      target.style.borderColor = '#0cc7ed';
+                      target.style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                    (e.target as HTMLInputElement).style.boxShadow = 'none';
+                  }}
+                  placeholder="Enter password (minimum 6 characters)"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {formData.password.length > 0 && formData.password.length < 6 && (
                 <p className="mt-1 text-sm text-red-600">
                   Password must be at least 6 characters long
