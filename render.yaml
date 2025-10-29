@@ -1,7 +1,7 @@
 services:
   - type: web
     name: hydration
-    env: docker
+    runtime: docker
     plan: starter
     autoDeploy: true
     dockerfilePath: ./Dockerfile
