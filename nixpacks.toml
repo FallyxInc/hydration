@@ -2,10 +2,13 @@
 nixPkgs = ["nodejs", "python3", "python3Packages.pip"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm ci"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npm run check-env", "npm run build"]
 
 [start]
 cmd = "npm run start:standalone"
+
+[variables]
+NODE_ENV = "production"
