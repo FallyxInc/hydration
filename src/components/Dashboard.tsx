@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, Firestore, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Firestore } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
@@ -24,10 +24,18 @@ export default function Dashboard() {
         return;
       }
       let fbdb = db as Firestore;
-      const userDoc = await getDoc(doc(fbdb, 'users', user.uid));
-      if (userDoc.exists()) {
+      
+      // Query users collection by firebaseUid field instead of using document ID
+      const usersQuery = query(
+        collection(fbdb, 'users'),
+        where('firebaseUid', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(usersQuery);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        console.log('User data:', userData); // Debug log
+        console.log('User data found:', userData); // Debug log
         setUserRole(userData.role);
         setRetirementHome(userData.retirementHome || '');
         
@@ -36,25 +44,15 @@ export default function Dashboard() {
           setActiveTab('data');
         }
       } else {
-        console.log('User document not found, creating default...');
-        // If user document doesn't exist, create a default one
-        await setDoc(doc(db, 'users', user.uid), {
-          name: user.displayName || user.email?.split('@')[0] || 'User',
-          email: user.email,
-          role: 'home_manager', // Default role
-          retirementHome: 'Responsive Senior Living', // Default home
-          createdAt: new Date(),
-        });
-        setUserRole('home_manager');
-        setRetirementHome('Responsive Senior Living');
-        setActiveTab('data');
+        console.log('User document not found. Logging out and returning to login.');
+        await logout();
+        return;
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      // Fallback to default values
-      setUserRole('home_manager');
-      setRetirementHome('Responsive Senior Living');
-      setActiveTab('data');
+      console.log('Logging out and returning to login.');
+      await logout();
+      return;
     } finally {
       setLoading(false);
     }
