@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface FileUploadProps {}
 
@@ -8,8 +8,38 @@ export default function FileUpload({}: FileUploadProps) {
   const [carePlanFiles, setCarePlanFiles] = useState<File[]>([]);
   const [hydrationDataFiles, setHydrationDataFiles] = useState<File[]>([]);
   const [selectedRetirementHome, setSelectedRetirementHome] = useState('');
+  const [retirementHomes, setRetirementHomes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingHomes, setLoadingHomes] = useState(true);
   const [message, setMessage] = useState('');
+
+  // Fetch retirement homes from the API
+  useEffect(() => {
+    const fetchRetirementHomes = async () => {
+      try {
+        setLoadingHomes(true);
+        console.log('🏠 [FILE UPLOAD] Fetching retirement homes...');
+        
+        const response = await fetch('/api/retirement-homes');
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('✅ [FILE UPLOAD] Retirement homes fetched:', data.retirementHomes);
+          setRetirementHomes(data.retirementHomes);
+        } else {
+          console.error('❌ [FILE UPLOAD] Error fetching retirement homes:', data.error);
+          setMessage(`Error loading retirement homes: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('❌ [FILE UPLOAD] Network error fetching retirement homes:', error);
+        setMessage(`Error loading retirement homes: ${error}`);
+      } finally {
+        setLoadingHomes(false);
+      }
+    };
+
+    fetchRetirementHomes();
+  }, []);
 
   const handleCarePlanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -226,7 +256,8 @@ export default function FileUpload({}: FileUploadProps) {
               name="retirementHome"
               value={selectedRetirementHome}
               onChange={(e) => setSelectedRetirementHome(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white"
+              disabled={loadingHomes}
+              className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
               style={{ 
                 '--tw-ring-color': '#0cc7ed',
                 '--tw-border-color': '#0cc7ed'
@@ -240,21 +271,27 @@ export default function FileUpload({}: FileUploadProps) {
                 (e.target as HTMLSelectElement).style.boxShadow = 'none';
               }}
             >
-              <option value="">Select a retirement home...</option>
-              <option value="Sunset Manor">Sunset Manor</option>
-              <option value="Golden Years">Golden Years</option>
-              <option value="Maple Gardens">Maple Gardens</option>
-              <option value="Cedar Grove">Cedar Grove</option>
-              <option value="Hickory Heights">Hickory Heights</option>
-              <option value="Responsive Senior Living">Responsive Senior Living</option>
+              <option value="">
+                {loadingHomes ? 'Loading retirement homes...' : 'Select a retirement home...'}
+              </option>
+              {retirementHomes.map((home) => (
+                <option key={home} value={home}>
+                  {home}
+                </option>
+              ))}
             </select>
+            {retirementHomes.length === 0 && !loadingHomes && (
+              <p className="mt-1 text-sm text-amber-600">
+                No retirement homes found. Please create users with retirement homes first.
+              </p>
+            )}
           </div>
 
           {/* Submit Button */}
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedRetirementHome}
+              disabled={loading || loadingHomes || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedRetirementHome}
               className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
               style={{ backgroundColor: '#0cc7ed' }}
               onMouseEnter={(e) => {
