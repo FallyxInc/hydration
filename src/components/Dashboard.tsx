@@ -25,15 +25,15 @@ export default function Dashboard() {
       }
       let fbdb = db as Firestore;
       
-      // Query users collection by firebaseUid field instead of using document ID
+      // First try to query by document ID (which should match user.uid)
       const usersQuery = query(
         collection(fbdb, 'users'),
-        where('uid', '==', user.uid)
+        where('__name__', '==', user.uid)
       );
-      console.log('Users query:', usersQuery);
+      console.log('Users query by document ID:', usersQuery);
       let querySnapshot = await getDocs(usersQuery);
       
-      // If not found by uid, try firebaseUid as fallback
+      // If still not found, try firebaseUid as fallback
       if (querySnapshot.empty) {
         console.log('User not found by uid, trying firebaseUid...');
         const fallbackQuery = query(
@@ -46,10 +46,6 @@ export default function Dashboard() {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        console.log('User data found:', userData); // Debug log
-        console.log('🔍 [DASHBOARD] Current retirement home:', userData.retirementHome);
-        console.log('🔍 [DASHBOARD] User UID:', user.uid);
-        console.log('🔍 [DASHBOARD] Document ID:', userDoc.id);
         setUserRole(userData.role);
         setRetirementHome(userData.retirementHome || '');
         
