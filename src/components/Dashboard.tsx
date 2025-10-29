@@ -36,6 +36,9 @@ export default function Dashboard() {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
         console.log('User data found:', userData); // Debug log
+        console.log('🔍 [DASHBOARD] Current retirement home:', userData.retirementHome);
+        console.log('🔍 [DASHBOARD] User UID:', user.uid);
+        console.log('🔍 [DASHBOARD] Document ID:', userDoc.id);
         setUserRole(userData.role);
         setRetirementHome(userData.retirementHome || '');
         
@@ -63,6 +66,14 @@ export default function Dashboard() {
       fetchUserData();
     }
   }, [user, fetchUserData]);
+
+  // Force refresh user data when component mounts
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('🔄 [DASHBOARD] Force refreshing user data...');
+      fetchUserData();
+    }
+  }, [fetchUserData, loading, user]);
 
   const handleLogout = async () => {
     await logout();

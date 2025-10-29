@@ -58,19 +58,25 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const fetchHydrationData = useCallback(async () => {
     console.log('🚀 [HYDRATION DATA COMPONENT] Starting data fetch...');
     console.log('📊 [HYDRATION DATA COMPONENT] Request parameters:', { userRole, retirementHome });
+    console.log('🔍 [HYDRATION DATA COMPONENT] Retirement home value:', retirementHome);
+    console.log('🔍 [HYDRATION DATA COMPONENT] Retirement home type:', typeof retirementHome);
     
     try {
       console.log('📤 [HYDRATION DATA COMPONENT] Sending request to /api/hydration-data...');
+      
+      const requestBody = {
+        userRole,
+        retirementHome
+      };
+      
+      console.log('📤 [HYDRATION DATA COMPONENT] Request body:', requestBody);
       
       const response = await fetch('/api/hydration-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userRole,
-          retirementHome
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       console.log('📥 [HYDRATION DATA COMPONENT] Response received:', { status: response.status, ok: response.ok });

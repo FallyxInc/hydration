@@ -3,8 +3,133 @@ import { writeFile, mkdir, copyFile } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
+import { getHomeIdentifier } from '@/lib/retirementHomeMapping';
 
 const execAsync = promisify(exec);
+
+// Function to upload data to Firestore
+async function uploadToFirestore(homeDir: string, retirementHome: string) {
+  const homeIdentifier = getHomeIdentifier(retirementHome);
+  
+  if (!db) {
+    console.log('⚠️ [FIRESTORE] Database not available, skipping Firestore upload');
+    console.log('🔍 [FIRESTORE] Firebase config check:', {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Set' : 'Not set',
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'Set' : 'Not set'
+    });
+    return;
+  }
+
+  console.log('🔥 [FIRESTORE] Starting Firestore upload for retirement home:', retirementHome);
+  console.log('🏠 [FIRESTORE] Using home identifier:', homeIdentifier);
+  
+  try {
+    // Read CSV data
+    const csvPath = join(homeDir, 'hydration_goals.csv');
+    const csvData = await import('fs/promises').then(fs => fs.readFile(csvPath, 'utf-8'));
+    console.log('✅ [FIRESTORE] CSV data read successfully');
+
+    // Read JS dashboard data
+    const jsPath = join(homeDir, 'dashboard_data.js');
+    const jsData = await import('fs/promises').then(fs => fs.readFile(jsPath, 'utf-8'));
+    console.log('✅ [FIRESTORE] Dashboard data read successfully');
+
+    // Upload CSV data to Firestore
+    const csvDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'hydration-goals');
+    await setDoc(csvDocRef, {
+      csvData: csvData,
+      timestamp: new Date(),
+      retirementHome: retirementHome,
+      homeIdentifier: homeIdentifier
+    });
+    console.log('✅ [FIRESTORE] CSV data uploaded successfully');
+
+    // Upload JS dashboard data to Firestore
+    const jsDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'dashboard-data');
+    await setDoc(jsDocRef, {
+      jsData: jsData,
+      timestamp: new Date(),
+      retirementHome: retirementHome,
+      homeIdentifier: homeIdentifier
+    });
+    console.log('✅ [FIRESTORE] Dashboard data uploaded successfully');
+
+    // Upload care plan files metadata
+    const carePlansDir = join(homeDir, 'care-plans');
+    const carePlanFiles = await import('fs/promises').then(fs => fs.readdir(carePlansDir));
+    for (const file of carePlanFiles) {
+      const filePath = join(carePlansDir, file);
+      const fileData = await import('fs/promises').then(fs => fs.readFile(filePath));
+      
+      const carePlanDocRef = doc(db, 'retirement-homes', homeIdentifier, 'care-plans', file);
+      await setDoc(carePlanDocRef, {
+        fileName: file,
+        fileData: Array.from(fileData), // Convert Buffer to array for Firestore
+        timestamp: new Date(),
+        retirementHome: retirementHome,
+        homeIdentifier: homeIdentifier
+      });
+      console.log(`✅ [FIRESTORE] Care plan file uploaded: ${file}`);
+    }
+
+    // Upload hydration data files metadata
+    const hydrationDataDir = join(homeDir, 'hydration-data');
+    const hydrationFiles = await import('fs/promises').then(fs => fs.readdir(hydrationDataDir));
+    for (const file of hydrationFiles) {
+      const filePath = join(hydrationDataDir, file);
+      const fileData = await import('fs/promises').then(fs => fs.readFile(filePath));
+      
+      const hydrationDocRef = doc(db, 'retirement-homes', homeIdentifier, 'hydration-data', file);
+      await setDoc(hydrationDocRef, {
+        fileName: file,
+        fileData: Array.from(fileData), // Convert Buffer to array for Firestore
+        timestamp: new Date(),
+        retirementHome: retirementHome,
+        homeIdentifier: homeIdentifier
+      });
+      console.log(`✅ [FIRESTORE] Hydration data file uploaded: ${file}`);
+    }
+
+    console.log('🎉 [FIRESTORE] All data uploaded to Firestore successfully');
+  } catch (error) {
+    console.error('❌ [FIRESTORE] Error uploading to Firestore:', error);
+    console.error('❌ [FIRESTORE] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code || 'No code',
+      stack: error instanceof Error ? error.stack : 'No stack',
+      name: (error as any)?.name || 'No name'
+    });
+    
+    // Check for specific Firestore error codes
+    const errorCode = (error as any)?.code;
+    if (errorCode) {
+      console.error('🔍 [FIRESTORE] Firestore error code:', errorCode);
+      switch (errorCode) {
+        case 'permission-denied':
+          console.error('🔍 [FIRESTORE] Permission denied: Check Firestore security rules');
+          break;
+        case 'unavailable':
+          console.error('🔍 [FIRESTORE] Service unavailable: Check Firestore configuration');
+          break;
+        case 'unauthenticated':
+          console.error('🔍 [FIRESTORE] Unauthenticated: User not authenticated');
+          break;
+        case 'invalid-argument':
+          console.error('🔍 [FIRESTORE] Invalid argument: Check data format');
+          break;
+        case 'failed-precondition':
+          console.error('🔍 [FIRESTORE] Failed precondition: Check Firestore setup');
+          break;
+        default:
+          console.error('🔍 [FIRESTORE] Other Firestore error:', errorCode);
+      }
+    }
+    
+    throw error;
+  }
+}
 
 export async function POST(request: NextRequest) {
   console.log('🚀 [API] Starting file processing request...');
@@ -181,6 +306,17 @@ export async function POST(request: NextRequest) {
       console.log(`✅ [API] JS data read successfully (${jsData.length} characters)`);
     } catch (error) {
       console.log('❌ [API] JS data file not found or could not be read:', error);
+    }
+
+    // Upload processed data to Firestore (optional - don't fail if this fails)
+    console.log('🔥 [API] Attempting to upload processed data to Firestore...');
+    try {
+      await uploadToFirestore(homeDir, retirementHome);
+      console.log('✅ [API] Firestore upload completed successfully');
+    } catch (firestoreError) {
+      console.error('❌ [API] Firestore upload failed:', firestoreError);
+      console.log('⚠️ [API] Continuing with local data despite Firestore upload failure');
+      // Don't throw the error - continue with the response
     }
 
     console.log('🎉 [API] File processing completed successfully!');
