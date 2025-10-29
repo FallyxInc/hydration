@@ -23,7 +23,8 @@ RUN pip3 install --no-cache-dir PyPDF2 pdfminer.six
 RUN npm run build
 
 # Copy static files to standalone directory
-RUN cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+RUN cp -r .next/static .next/standalone/.next/ && \
+    cp -r public .next/standalone/
 
 # Set environment variables
 ENV NODE_ENV=production
