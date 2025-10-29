@@ -12,15 +12,11 @@ const nextConfig = {
   // Ensure static assets are properly served
   assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',
   
-  // Experimental features for better performance
-  experimental: {
-    optimizeCss: true,
-  },
-  
   // Ensure proper image optimization
   images: {
     unoptimized: false,
   },
+  
 }
 
 module.exports = nextConfig

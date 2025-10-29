@@ -56,7 +56,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, logout]);
 
   useEffect(() => {
     if (user) {
