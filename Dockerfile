@@ -28,15 +28,15 @@ RUN cp -r .next/static .next/standalone/.next/ && \
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=10000
+ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
-EXPOSE 10000
+EXPOSE 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:10000/api/health || exit 1
+  CMD curl -f http://localhost:8080/api/health || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application using standalone mode
+CMD ["npm", "run", "start:standalone"]
 
