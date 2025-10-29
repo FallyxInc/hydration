@@ -3,14 +3,20 @@ import { writeFile, mkdir, copyFile } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getHomeIdentifier } from '@/lib/retirementHomeMapping';
 
 const execAsync = promisify(exec);
 
-// Function to upload data to Firestore
-async function uploadToFirestore(homeDir: string, retirementHome: string) {
+// Function to upload data to Firestore and PDFs to Firebase Storage (PDFs passed directly)
+async function uploadToFirebase(
+  homeDir: string,
+  retirementHome: string,
+  carePlanUploads: { fileName: string; bytes: Uint8Array }[],
+  hydrationUploads: { fileName: string; bytes: Uint8Array }[]
+) {
   const homeIdentifier = getHomeIdentifier(retirementHome);
   
   if (!db) {
@@ -19,6 +25,11 @@ async function uploadToFirestore(homeDir: string, retirementHome: string) {
       apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Set' : 'Not set',
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'Set' : 'Not set'
     });
+    return;
+  }
+
+  if (!storage) {
+    console.log('⚠️ [STORAGE] Firebase Storage not available, skipping Storage upload');
     return;
   }
 
@@ -56,74 +67,79 @@ async function uploadToFirestore(homeDir: string, retirementHome: string) {
     });
     console.log('✅ [FIRESTORE] Dashboard data uploaded successfully');
 
-    // Upload care plan files metadata
-    const carePlansDir = join(homeDir, 'care-plans');
-    const carePlanFiles = await import('fs/promises').then(fs => fs.readdir(carePlansDir));
-    for (const file of carePlanFiles) {
-      const filePath = join(carePlansDir, file);
-      const fileData = await import('fs/promises').then(fs => fs.readFile(filePath));
+    // Upload care plan PDFs to Firebase Storage (use provided buffers)
+    for (const { fileName, bytes } of carePlanUploads) {
+      const storageRef = ref(storage, `retirement-homes/${homeIdentifier}/care-plans/${fileName}`);
+      const snapshot = await uploadBytes(storageRef, bytes, { contentType: 'application/pdf' });
+      const downloadURL = await getDownloadURL(snapshot.ref);
       
-      const carePlanDocRef = doc(db, 'retirement-homes', homeIdentifier, 'care-plans', file);
+      const carePlanDocRef = doc(db, 'retirement-homes', homeIdentifier, 'care-plans', fileName);
       await setDoc(carePlanDocRef, {
-        fileName: file,
-        fileData: Array.from(fileData), // Convert Buffer to array for Firestore
+        fileName: fileName,
+        storageURL: downloadURL,
+        storagePath: storageRef.fullPath,
         timestamp: new Date(),
         retirementHome: retirementHome,
         homeIdentifier: homeIdentifier
       });
-      console.log(`✅ [FIRESTORE] Care plan file uploaded: ${file}`);
+      console.log(`✅ [STORAGE] Care plan file uploaded to Storage: ${fileName}`);
     }
 
-    // Upload hydration data files metadata
-    const hydrationDataDir = join(homeDir, 'hydration-data');
-    const hydrationFiles = await import('fs/promises').then(fs => fs.readdir(hydrationDataDir));
-    for (const file of hydrationFiles) {
-      const filePath = join(hydrationDataDir, file);
-      const fileData = await import('fs/promises').then(fs => fs.readFile(filePath));
+    // Upload hydration data PDFs to Firebase Storage (use provided buffers)
+    for (const { fileName, bytes } of hydrationUploads) {
+      const storageRef = ref(storage, `retirement-homes/${homeIdentifier}/hydration-data/${fileName}`);
+      const snapshot = await uploadBytes(storageRef, bytes, { contentType: 'application/pdf' });
+      const downloadURL = await getDownloadURL(snapshot.ref);
       
-      const hydrationDocRef = doc(db, 'retirement-homes', homeIdentifier, 'hydration-data', file);
+      const hydrationDocRef = doc(db, 'retirement-homes', homeIdentifier, 'hydration-data', fileName);
       await setDoc(hydrationDocRef, {
-        fileName: file,
-        fileData: Array.from(fileData), // Convert Buffer to array for Firestore
+        fileName: fileName,
+        storageURL: downloadURL,
+        storagePath: storageRef.fullPath,
         timestamp: new Date(),
         retirementHome: retirementHome,
         homeIdentifier: homeIdentifier
       });
-      console.log(`✅ [FIRESTORE] Hydration data file uploaded: ${file}`);
+      console.log(`✅ [STORAGE] Hydration data file uploaded to Storage: ${fileName}`);
     }
 
-    console.log('🎉 [FIRESTORE] All data uploaded to Firestore successfully');
+    console.log('🎉 [FIRESTORE] All data uploaded to Firestore and Storage successfully');
   } catch (error) {
-    console.error('❌ [FIRESTORE] Error uploading to Firestore:', error);
-    console.error('❌ [FIRESTORE] Error details:', {
+    console.error('❌ [FIRESTORE/STORAGE] Error uploading to Firebase:', error);
+    console.error('❌ [FIRESTORE/STORAGE] Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       code: (error as any)?.code || 'No code',
       stack: error instanceof Error ? error.stack : 'No stack',
       name: (error as any)?.name || 'No name'
     });
     
-    // Check for specific Firestore error codes
     const errorCode = (error as any)?.code;
     if (errorCode) {
-      console.error('🔍 [FIRESTORE] Firestore error code:', errorCode);
+      console.error('🔍 [FIRESTORE/STORAGE] Firebase error code:', errorCode);
       switch (errorCode) {
         case 'permission-denied':
-          console.error('🔍 [FIRESTORE] Permission denied: Check Firestore security rules');
+          console.error('🔍 [FIRESTORE/STORAGE] Permission denied: Check Firebase security rules');
+          break;
+        case 'storage/unauthorized':
+          console.error('🔍 [STORAGE] Unauthorized: Check Storage security rules');
+          break;
+        case 'storage/unknown':
+          console.error('🔍 [STORAGE] Unknown error: Check Storage configuration');
           break;
         case 'unavailable':
-          console.error('🔍 [FIRESTORE] Service unavailable: Check Firestore configuration');
+          console.error('🔍 [FIRESTORE/STORAGE] Service unavailable: Check Firebase configuration');
           break;
         case 'unauthenticated':
-          console.error('🔍 [FIRESTORE] Unauthenticated: User not authenticated');
+          console.error('🔍 [FIRESTORE/STORAGE] Unauthenticated: User not authenticated');
           break;
         case 'invalid-argument':
-          console.error('🔍 [FIRESTORE] Invalid argument: Check data format');
+          console.error('🔍 [FIRESTORE/STORAGE] Invalid argument: Check data format');
           break;
         case 'failed-precondition':
-          console.error('🔍 [FIRESTORE] Failed precondition: Check Firestore setup');
+          console.error('🔍 [FIRESTORE/STORAGE] Failed precondition: Check Firebase setup');
           break;
         default:
-          console.error('🔍 [FIRESTORE] Other Firestore error:', errorCode);
+          console.error('🔍 [FIRESTORE/STORAGE] Other Firebase error:', errorCode);
       }
     }
     
@@ -190,19 +206,22 @@ export async function POST(request: NextRequest) {
     // Save all uploaded files
     console.log(`💾 [API] Saving ${carePlanFiles.length} care plan files and ${hydrationDataFiles.length} hydration data files`);
     
-    // Save care plan files
+    // Save files locally and collect buffers for Firebase upload
+    const carePlanUploads: { fileName: string; bytes: Uint8Array }[] = [];
     for (const file of carePlanFiles) {
-      const bytes = await file.arrayBuffer();
+      const bytes = new Uint8Array(await file.arrayBuffer());
       const path = join(carePlansDir, file.name);
       await writeFile(path, Buffer.from(bytes));
+      carePlanUploads.push({ fileName: file.name, bytes });
       console.log(`✅ [API] Saved care plan: ${file.name} to ${path}`);
     }
     
-    // Save hydration data files
+    const hydrationUploads: { fileName: string; bytes: Uint8Array }[] = [];
     for (const file of hydrationDataFiles) {
-      const bytes = await file.arrayBuffer();
+      const bytes = new Uint8Array(await file.arrayBuffer());
       const path = join(hydrationDataDir, file.name);
       await writeFile(path, Buffer.from(bytes));
+      hydrationUploads.push({ fileName: file.name, bytes });
       console.log(`✅ [API] Saved hydration data: ${file.name} to ${path}`);
     }
 
@@ -308,11 +327,11 @@ export async function POST(request: NextRequest) {
       console.log('❌ [API] JS data file not found or could not be read:', error);
     }
 
-    // Upload processed data to Firestore (optional - don't fail if this fails)
-    console.log('🔥 [API] Attempting to upload processed data to Firestore...');
+    // Upload PDFs (via provided buffers) and processed data to Firebase
+    console.log('🔥 [API] Attempting to upload PDFs and processed data to Firebase...');
     try {
-      await uploadToFirestore(homeDir, retirementHome);
-      console.log('✅ [API] Firestore upload completed successfully');
+      await uploadToFirebase(homeDir, retirementHome, carePlanUploads, hydrationUploads);
+      console.log('✅ [API] Firebase upload completed successfully');
     } catch (firestoreError) {
       console.error('❌ [API] Firestore upload failed:', firestoreError);
       console.log('⚠️ [API] Continuing with local data despite Firestore upload failure');

@@ -30,7 +30,6 @@ export default function Dashboard() {
         collection(fbdb, 'users'),
         where('__name__', '==', user.uid)
       );
-      console.log('Users query by document ID:', user.uid);
       let querySnapshot = await getDocs(usersQuery);
       
       // If still not found, try firebaseUid as fallback
@@ -44,6 +43,7 @@ export default function Dashboard() {
       }
       
       if (!querySnapshot.empty) {
+        console.log('User data found');
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
         setUserRole(userData.role);
@@ -51,6 +51,7 @@ export default function Dashboard() {
         
         // Home managers should only see data tab
         if (userData.role === 'home_manager') {
+          console.log('Setting active tab to data');
           setActiveTab('data');
         }
       } else {
@@ -83,6 +84,7 @@ export default function Dashboard() {
   }, [fetchUserData, loading, user]);
 
   const handleLogout = async () => {
+    console.log('Logging out');
     await logout();
   };
 
