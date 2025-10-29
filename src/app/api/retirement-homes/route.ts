@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { collection, getDocs, Firestore } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+export const revalidate = 120;
+
 export async function GET(request: NextRequest) {
   try {
     // Check if Firebase is available
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
         retirementHomes.add(userData.retirementHome.trim());
       }
     });
-
+    
     const retirementHomesList = Array.from(retirementHomes).sort();
     
     console.log('✅ [API] Found retirement homes:', retirementHomesList);
@@ -33,13 +35,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       retirementHomes: retirementHomesList
+    }, {
+      headers: {
+        'Cache-Control': 's-maxage=60, stale-while-revalidate=120'
+      }
     });
 
   } catch (error: any) {
     console.error('❌ [API] Error fetching retirement homes:', error);
     return NextResponse.json(
       { error: 'Failed to fetch retirement homes', details: error.message },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
     );
   }
 }

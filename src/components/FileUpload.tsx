@@ -21,18 +21,30 @@ export default function FileUpload({}: FileUploadProps) {
         console.log('🏠 [FILE UPLOAD] Fetching retirement homes...');
         
         const response = await fetch('/api/retirement-homes');
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ [FILE UPLOAD] Error response:', response.status, errorText);
+          throw new Error(`Failed to fetch retirement homes: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success) {
-          console.log('✅ [FILE UPLOAD] Retirement homes fetched:', data.retirementHomes);
+          console.log('✅ [FILE UPLOAD] Retirement homes API response:', data.retirementHomes);
           setRetirementHomes(data.retirementHomes);
+          
+          if (data.retirementHomes.length === 0) {
+            console.warn('⚠️ [FILE UPLOAD] No retirement homes found');
+            setMessage('No retirement homes found. Please ensure users have retirement homes assigned.');
+          }
         } else {
           console.error('❌ [FILE UPLOAD] Error fetching retirement homes:', data.error);
           setMessage(`Error loading retirement homes: ${data.error}`);
         }
       } catch (error) {
         console.error('❌ [FILE UPLOAD] Network error fetching retirement homes:', error);
-        setMessage(`Error loading retirement homes: ${error}`);
+        setMessage(`Error loading retirement homes: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoadingHomes(false);
       }

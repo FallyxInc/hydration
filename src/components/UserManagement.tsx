@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Firestore } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Firestore, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, Auth, deleteUser } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 
@@ -99,13 +99,14 @@ export default function UserManagement() {
       const firebaseUser = userCredential.user;
       console.log('Firebase Auth user created:', firebaseUser.uid);
 
-      // Then create the user document in Firestore
+      // Then create the user document in Firestore with document ID matching Firebase UID
       let fbdb = db as Firestore;
-      const userDocRef = await addDoc(collection(fbdb, 'users'), {
+      const userDocRef = doc(fbdb, 'users', firebaseUser.uid);
+      await setDoc(userDocRef, {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        retirementHome: formData.role === 'home_manager' ? formData.retirementHome : '',
+        retirementHome: formData.retirementHome ?? '',
         createdAt: new Date(),
         firebaseUid: firebaseUser.uid
       });
