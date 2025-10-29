@@ -30,7 +30,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<number>(3);
+  // const [dateRange, setDateRange] = useState<number>(3);
   const [residentComments, setResidentComments] = useState<{[key: string]: string}>({});
   const [editingComments, setEditingComments] = useState<{[key: string]: string}>({});
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
@@ -90,8 +90,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           ...resident,
           unit: extractUnitFromSource(resident.source),
           averageIntake: calculateAverageIntake(resident),
-          hasFeedingTube: resident.hasFeedingTube || false,
-          comments: residentComments[resident.name] || ''
+          hasFeedingTube: resident.hasFeedingTube || false
         }));
         setResidents(processedResidents);
       } else {
@@ -105,7 +104,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       setLoading(false);
       console.log('🏁 [HYDRATION DATA COMPONENT] Data fetch completed');
     }
-  }, [userRole, retirementHome, residentComments]);
+  }, [userRole, retirementHome]);
 
   const getGoalStatus = (goal: number, yesterday: number) => {
     if (goal === 0) return 'No goal set';
@@ -341,7 +340,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
 
   useEffect(() => {
     filterResidents();
-  }, [filterResidents, dateRange]);
+  }, [filterResidents]);
 
   if (loading) {
     return (
@@ -445,37 +444,31 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         </div>
 
         {/* Filter Controls Island - Right Side */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-col justify-between h-full">
-            <div className="flex items-center space-x-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit Filter</label>
-                <select
-                  value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                >
-                  <option value="all">All Units</option>
-                  {getUniqueUnits().map(unit => (
-                    <option key={unit} value={unit}>Unit {unit}</option>
-                  ))}
-                </select>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 relative">
+          {/* Center all units */}
+          <div className="flex items-center justify-center">
+            <div className="text-center w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit Filter</label>
+              <select
+                value={selectedUnit}
+                onChange={(e) => setSelectedUnit(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center"
+              >
+                <option value="all" className="text-center">All Units</option>
+                {getUniqueUnits().map(unit => (
+                  <option key={unit} value={unit} className="text-center">Unit {unit}</option>
+                ))}
+              </select>
+              <div
+                className="mt-2 text-sm text-cyan-600 font-medium text-center sticky bottom-0 bg-white py-1 z-10"
+                style={{ 
+                  background: 'white',
+                  left: 0,
+                  right: 0
+                }}
+              >
+                Showing {filteredResidents.length} of {residents.length} residents
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(parseInt(e.target.value))}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                >
-                  <option value={3}>Past 3 Days</option>
-                  <option value={7}>Past 7 Days</option>
-                  <option value={14}>Past 14 Days</option>
-                </select>
-              </div>
-            </div>
-            <div className="text-sm text-cyan-600 font-medium mt-4">
-              Showing {filteredResidents.length} of {residents.length} residents
             </div>
           </div>
         </div>
@@ -577,9 +570,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Missed 3 Days
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-80 min-w-80">
-                  Comments
-                </th>
+                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48 min-w-48 max-w-48">
+                   Comments
+                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -659,13 +652,17 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       {resident.missed3Days === 'yes' ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 w-60 min-w-60">
-                    <div className="space-y-1">
+                   <td className="px-6 py-4 w-48 min-w-48 max-w-48">
+                     <div className="space-y-1">
                       {/* Display saved comment or editing area */}
                       {residentComments[resident.name] && !editingComments[resident.name] ? (
                         <div className="space-y-1">
-                          <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group">
-                            {residentComments[resident.name]}
+                           <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group break-words overflow-hidden">
+                             <div className="max-h-12 overflow-hidden" style={{
+                               display: '-webkit-box',
+                               WebkitLineClamp: 3,
+                               WebkitBoxOrient: 'vertical'
+                             }}>{residentComments[resident.name]}</div>
                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
                               <button
                                 onClick={() => handleEditComment(resident.name)}
@@ -686,13 +683,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                         </div>
                       ) : (
                         <div className="relative">
-                          <textarea
-                            value={editingComments[resident.name] || ''}
-                            onChange={(e) => handleCommentChange(resident.name, e.target.value)}
-                            placeholder="Add comment..."
-                            className="w-full px-2 py-1 pr-8 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
-                            rows={2}
-                          />
+                           <textarea
+                             value={editingComments[resident.name] || ''}
+                             onChange={(e) => handleCommentChange(resident.name, e.target.value)}
+                             placeholder="Add comment..."
+                             className="w-full px-2 py-1 pr-8 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 break-words"
+                             rows={2}
+                             maxLength={200}
+                           />
                           <button
                             onClick={() => handleSaveComment(resident.name)}
                             disabled={savingComments[resident.name] || !editingComments[resident.name]?.trim()}
