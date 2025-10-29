@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
 import UserManagement from './UserManagement';
+import HomeManagerFileUpload from './HomeManagerFileUpload';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -103,6 +104,17 @@ export default function Dashboard() {
                 Welcome, {user?.email}
                 {retirementHome && ` (${retirementHome})`}
               </span>
+              {userRole === 'home_manager' && (
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+                  style={{ backgroundColor: '#10b981' }}
+                  onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#059669'}
+                  onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#10b981'}
+                >
+                  📁 Upload Files
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
@@ -150,6 +162,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {activeTab === 'upload' && userRole === 'admin' && <FileUpload />}
+        {activeTab === 'upload' && userRole === 'home_manager' && <HomeManagerFileUpload retirementHome={retirementHome} />}
         {activeTab === 'data' && userRole === 'home_manager' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
         {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
       </main>
