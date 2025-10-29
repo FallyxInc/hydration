@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Firestore, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, Auth, deleteUser } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, Auth, deleteUser, getAuth, signOut } from 'firebase/auth';
+import { initializeApp, FirebaseApp, deleteApp } from 'firebase/app';
+import { db, auth, firebaseConfig } from '@/lib/firebase';
 
 interface User {
   id: string;
@@ -93,11 +94,15 @@ export default function UserManagement() {
 
       console.log('Creating user with role:', formData.role, 'Email:', formData.email);
 
-      // Create Firebase Auth user first
-      let fbauth = auth as Auth;
-      const userCredential = await createUserWithEmailAndPassword(fbauth, formData.email, formData.password);
+      // Create Firebase Auth user using a secondary app to avoid logging out current user
+      const secondaryApp: FirebaseApp = initializeApp(firebaseConfig, 'secondary');
+      const secondaryAuth = getAuth(secondaryApp);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
       const firebaseUser = userCredential.user;
       console.log('Firebase Auth user created:', firebaseUser.uid);
+      // Clean up secondary app session
+      try { await signOut(secondaryAuth); } catch {}
+      try { await deleteApp(secondaryApp); } catch {}
 
       // Then create the user document in Firestore with document ID matching Firebase UID
       let fbdb = db as Firestore;
