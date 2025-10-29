@@ -20,15 +20,50 @@ export default function FileUpload({}: FileUploadProps) {
         setLoadingHomes(true);
         console.log('🏠 [FILE UPLOAD] Fetching retirement homes...');
         
+        // First, fetch all users
+        console.log('👥 [FILE UPLOAD] Fetching all users...');
+        const usersResponse = await fetch('/api/users');
+        const usersData = await usersResponse.json();
+        
+        if (usersData.success) {
+          console.log('✅ [FILE UPLOAD] Users fetched:', usersData.users);
+          
+          // Extract unique retirement homes from users
+          const homes = new Set<string>();
+          usersData.users.forEach((user: any) => {
+            if (user.retirementHome) {
+              homes.add(user.retirementHome);
+              console.log(`🏠 [FILE UPLOAD] Found retirement home: ${user.retirementHome} (from user: ${user.email})`);
+            }
+          });
+          
+          const uniqueHomes = Array.from(homes).sort();
+          console.log('✅ [FILE UPLOAD] Unique retirement homes found:', uniqueHomes);
+          setRetirementHomes(uniqueHomes);
+          
+          if (uniqueHomes.length === 0) {
+            console.warn('⚠️ [FILE UPLOAD] No retirement homes found in user data');
+            setMessage('No retirement homes found. Please ensure users have retirement homes assigned.');
+          }
+        } else {
+          console.error('❌ [FILE UPLOAD] Error fetching users:', usersData.error);
+          setMessage(`Error loading users: ${usersData.error}`);
+        }
+        
+        // Also fetch from retirement-homes API as backup
         const response = await fetch('/api/retirement-homes');
         const data = await response.json();
         
         if (data.success) {
-          console.log('✅ [FILE UPLOAD] Retirement homes fetched:', data.retirementHomes);
-          setRetirementHomes(data.retirementHomes);
+          console.log('✅ [FILE UPLOAD] Retirement homes API response:', data.retirementHomes);
+          
+          // Merge with homes from users (avoid duplicates)
+          const allHomes = new Set([...retirementHomes, ...data.retirementHomes]);
+          const mergedHomes = Array.from(allHomes).sort();
+          console.log('✅ [FILE UPLOAD] Merged retirement homes:', mergedHomes);
+          setRetirementHomes(mergedHomes);
         } else {
           console.error('❌ [FILE UPLOAD] Error fetching retirement homes:', data.error);
-          setMessage(`Error loading retirement homes: ${data.error}`);
         }
       } catch (error) {
         console.error('❌ [FILE UPLOAD] Network error fetching retirement homes:', error);
