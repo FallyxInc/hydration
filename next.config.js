@@ -10,11 +10,11 @@ const nextConfig = {
   compress: true,
   
   // Ensure static assets are properly served
-  assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',
+  assetPrefix: '',
   
   // Ensure proper image optimization
   images: {
-    unoptimized: false,
+    unoptimized: true,
   },
   
 }
