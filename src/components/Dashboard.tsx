@@ -28,9 +28,20 @@ export default function Dashboard() {
       // Query users collection by firebaseUid field instead of using document ID
       const usersQuery = query(
         collection(fbdb, 'users'),
-        where('firebaseUid', '==', user.uid)
+        where('uid', '==', user.uid)
       );
-      const querySnapshot = await getDocs(usersQuery);
+      console.log('Users query:', usersQuery);
+      let querySnapshot = await getDocs(usersQuery);
+      
+      // If not found by uid, try firebaseUid as fallback
+      if (querySnapshot.empty) {
+        console.log('User not found by uid, trying firebaseUid...');
+        const fallbackQuery = query(
+          collection(fbdb, 'users'),
+          where('firebaseUid', '==', user.uid)
+        );
+        querySnapshot = await getDocs(fallbackQuery);
+      }
       
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
