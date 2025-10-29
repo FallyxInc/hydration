@@ -30,7 +30,7 @@ export default function Dashboard() {
         collection(fbdb, 'users'),
         where('__name__', '==', user.uid)
       );
-      console.log('Users query by document ID:', usersQuery);
+      console.log('Users query by document ID:', user.uid);
       let querySnapshot = await getDocs(usersQuery);
       
       // If still not found, try firebaseUid as fallback
