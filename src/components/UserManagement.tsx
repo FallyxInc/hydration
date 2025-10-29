@@ -84,6 +84,12 @@ export default function UserManagement() {
         return;
       }
 
+      // Validate retirement home for home managers
+      if (formData.role === 'home_manager' && !formData.retirementHome.trim()) {
+        setMessage('Error: Retirement home is required for home managers.');
+        return;
+      }
+
       console.log('Creating user with role:', formData.role, 'Email:', formData.email);
 
       // Create Firebase Auth user first
@@ -98,7 +104,7 @@ export default function UserManagement() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        retirementHome: formData.retirementHome,
+        retirementHome: formData.role === 'home_manager' ? formData.retirementHome : '',
         createdAt: new Date(),
         firebaseUid: firebaseUser.uid
       });
@@ -335,7 +341,15 @@ export default function UserManagement() {
               <select
                 id="role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'home_manager' })}
+                onChange={(e) => {
+                  const newRole = e.target.value as 'admin' | 'home_manager';
+                  setFormData({ 
+                    ...formData, 
+                    role: newRole,
+                    // Clear retirement home when switching to admin
+                    retirementHome: newRole === 'admin' ? '' : formData.retirementHome
+                  });
+                }}
                 className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
                 style={{ 
                   '--tw-ring-color': '#0cc7ed',
@@ -355,32 +369,34 @@ export default function UserManagement() {
               </select>
             </div>
 
-            <div>
-              <label htmlFor="retirementHome" className="block text-sm font-medium text-gray-700">
-                Retirement Home Name
-              </label>
-              <input
-                type="text"
-                id="retirementHome"
-                value={formData.retirementHome}
-                onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
-                className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
-                style={{ 
-                  '--tw-ring-color': '#0cc7ed',
-                  '--tw-border-color': '#0cc7ed'
-                } as React.CSSProperties}
-                onFocus={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
-                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
-                }}
-                onBlur={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
-                (e.target as HTMLInputElement).style.boxShadow = 'none';
-                }}
-                placeholder="e.g., Sunset Manor, Golden Years, etc."
-                required
-              />
-            </div>
+            {formData.role === 'home_manager' && (
+              <div>
+                <label htmlFor="retirementHome" className="block text-sm font-medium text-gray-700">
+                  Retirement Home Name
+                </label>
+                <input
+                  type="text"
+                  id="retirementHome"
+                  value={formData.retirementHome}
+                  onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
+                  className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                  style={{ 
+                    '--tw-ring-color': '#0cc7ed',
+                    '--tw-border-color': '#0cc7ed'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                  (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                  (e.target as HTMLInputElement).style.boxShadow = 'none';
+                  }}
+                  placeholder="e.g., Sunset Manor, Golden Years, etc."
+                  required
+                />
+              </div>
+            )}
 
             <div className="flex justify-end space-x-3">
               <button
