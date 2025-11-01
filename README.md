@@ -22,8 +22,8 @@ The system consists of two main components:
 ### Option A: Modern Web Application (Recommended)
 
 ```bash
-# 1. Navigate to the web app directory
-cd hydration-app
+# 1. Navigate to the project directory
+cd hydration
 
 # 2. Install dependencies
 npm install
@@ -43,13 +43,13 @@ Visit [http://localhost:3000](http://localhost:3000) to access the web applicati
 
 ```bash
 # 1. Process care plan PDFs
-python3 careplan.py
+python3 python/careplan.py
 
 # 2. Process hydration data PDFs
-python3 process_dat_pdf.py
+python3 python/process_dat_pdf.py
 
 # 3. Generate dashboard data
-python3 generate_dashboard_data.py
+python3 python/generate_dashboard_data.py
 
 # 4. Open the dashboard
 open hydration.html
@@ -71,7 +71,6 @@ pip install PyPDF2 pdfminer.six
 
 ### Node.js Dependencies (for web app)
 ```bash
-cd hydration-app
 npm install
 ```
 
@@ -95,7 +94,7 @@ npm install
    - Add a web app and copy the config
 
 5. **Environment Variables**
-   Create `hydration-app/.env.local`:
+   Create `.env.local` in the project root:
    ```env
    NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
@@ -127,29 +126,29 @@ hydration/
 ├── hydration-data/               # Daily consumption PDFs
 │   ├── CG.pdf, HH.pdf, MG.pdf
 │   └── *-Extra.pdf files
-├── hydration-app/                # Modern web application
-│   ├── src/
-│   │   ├── app/                 # Next.js app directory
-│   │   │   ├── api/            # API routes
-│   │   │   │   ├── process-files/route.ts
-│   │   │   │   ├── hydration-data/route.ts
-│   │   │   │   ├── create-user/route.ts
-│   │   │   │   └── delete-home-data/route.ts
-│   │   │   ├── page.tsx         # Home page
-│   │   │   └── layout.tsx       # Root layout
-│   │   ├── components/         # React components
-│   │   │   ├── Dashboard.tsx   # Main dashboard
-│   │   │   ├── FileUpload.tsx  # File upload interface
-│   │   │   ├── HydrationData.tsx # Data display
-│   │   │   ├── LoginForm.tsx   # Authentication
-│   │   │   └── UserManagement.tsx # User management
-│   │   └── lib/
-│   │       └── firebase.ts     # Firebase configuration
-│   ├── data/                    # User-specific data storage
-│   └── .env.local              # Environment variables
-├── careplan.py                  # Extract names & goals
-├── process_dat_pdf.py          # Process consumption data
-├── generate_dashboard_data.py  # Generate JS data
+├── src/                         # Next.js application
+│   ├── app/                     # Next.js app directory
+│   │   ├── api/                 # API routes
+│   │   │   ├── process-files/route.ts
+│   │   │   ├── hydration-data/route.ts
+│   │   │   ├── create-user/route.ts
+│   │   │   └── delete-home-data/route.ts
+│   │   ├── page.tsx             # Home page
+│   │   └── layout.tsx           # Root layout
+│   ├── components/              # React components
+│   │   ├── Dashboard.tsx        # Main dashboard
+│   │   ├── FileUpload.tsx       # File upload interface
+│   │   ├── HydrationData.tsx    # Data display
+│   │   ├── LoginForm.tsx        # Authentication
+│   │   └── UserManagement.tsx   # User management
+│   └── lib/
+│       └── firebase.ts          # Firebase configuration
+├── python/                      # Python scripts
+│   ├── careplan.py              # Extract names & goals
+│   ├── process_dat_pdf.py       # Process consumption data
+│   └── generate_dashboard_data.py # Generate JS data
+├── data/                        # User-specific data storage
+└── .env.local                   # Environment variables
 ├── hydration_goals.csv         # Master data file
 ├── dashboard_data.js           # JavaScript data
 └── hydration.html              # Traditional dashboard
@@ -174,11 +173,11 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Care Plan PDFs] --> B[careplan.py]
-    C[Hydration Data PDFs] --> D[process_dat_pdf.py]
+    A[Care Plan PDFs] --> B[python/careplan.py]
+    C[Hydration Data PDFs] --> D[python/process_dat_pdf.py]
     B --> E[hydration_goals.csv]
     D --> E
-    E --> F[generate_dashboard_data.py]
+    E --> F[python/generate_dashboard_data.py]
     F --> G[dashboard_data.js]
     G --> H[hydration.html]
 ```
@@ -197,7 +196,7 @@ graph TD
 
 **Usage**:
 ```bash
-python3 careplan.py
+python3 python/careplan.py
 ```
 
 **Output**: Creates `hydration_goals.csv` with resident names in "LASTNAME, FIRSTNAME" format
@@ -214,7 +213,7 @@ python3 careplan.py
 
 **Usage**:
 ```bash
-python3 process_dat_pdf.py
+python3 python/process_dat_pdf.py
 ```
 
 ### 3. `generate_dashboard_data.py` - Dashboard Data Generator
@@ -228,7 +227,7 @@ python3 process_dat_pdf.py
 
 **Usage**:
 ```bash
-python3 generate_dashboard_data.py
+python3 python/generate_dashboard_data.py
 ```
 
 ## 🌐 Web Application Features
@@ -303,7 +302,7 @@ The system includes comprehensive debug logging:
 **1. Firebase Authentication Errors**
 ```bash
 # Check environment variables
-cat hydration-app/.env.local
+cat .env.local
 
 # Verify Firebase project configuration
 # Ensure Authentication is enabled in Firebase Console
@@ -315,20 +314,20 @@ cat hydration-app/.env.local
 pip list | grep -E "(PyPDF2|pdfminer)"
 
 # Verify file permissions
-ls -la hydration-app/data/
+ls -la data/
 ```
 
 **3. Build Errors**
 ```bash
 # Clear Next.js cache
-rm -rf hydration-app/.next
+rm -rf .next
 
 # Reinstall dependencies
-cd hydration-app && npm install
+npm install
 ```
 
 **4. Name Extraction Issues**
-- Check debug output in terminal when running `careplan.py`
+- Check debug output in terminal when running `python/careplan.py`
 - Verify PDF text extraction is working
 - Review filtered names in debug logs
 

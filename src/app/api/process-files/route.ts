@@ -234,11 +234,11 @@ export async function POST(request: NextRequest) {
 
     // Copy the Python processing scripts
     console.log('📋 [API] Copying Python scripts to home directory...');
-    await copyFile(join(process.cwd(), 'careplan.py'), join(scriptsDir, 'careplan.py'));
+    await copyFile(join(process.cwd(), 'python', 'careplan.py'), join(scriptsDir, 'careplan.py'));
     console.log('✅ [API] Copied careplan.py');
-    await copyFile(join(process.cwd(), 'process_dat_pdf.py'), join(scriptsDir, 'process_dat_pdf.py'));
+    await copyFile(join(process.cwd(), 'python', 'process_dat_pdf.py'), join(scriptsDir, 'process_dat_pdf.py'));
     console.log('✅ [API] Copied process_dat_pdf.py');
-    await copyFile(join(process.cwd(), 'generate_dashboard_data.py'), join(scriptsDir, 'generate_dashboard_data.py'));
+    await copyFile(join(process.cwd(), 'python', 'generate_dashboard_data.py'), join(scriptsDir, 'generate_dashboard_data.py'));
     console.log('✅ [API] Copied generate_dashboard_data.py');
     console.log('✅ [API] All Python scripts copied successfully');
 
