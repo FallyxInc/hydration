@@ -23,29 +23,61 @@ except Exception as e:
 import glob
 CARE_PLAN_FILES = glob.glob("care-plans/*.pdf")
 
+
+def _txt_path_for(pdf_path: str) -> str:
+    base, _ = os.path.splitext(pdf_path)
+    return base + ".txt"
+
+
 def read_pdf_text(path: str) -> str:
-    """Return concatenated text of a PDF using available backends."""
+    """Return concatenated text of a PDF using available backends and
+    also write the text to a .txt file at the same path (with .txt extension).
+    """
+    text: Optional[str] = None
+
+
+    print(f"\nReading text from {path}")
     if PDFMINER_AVAILABLE:
         try:
-            return extract_text(path) or ""
-        except Exception as e:
-            pass
-    if PYPDF2_AVAILABLE:
-        try:
-            reader = PdfReader(path)
-            texts = []
-            for page in reader.pages:
-                try:
-                    texts.append(page.extract_text() or "")
-                except Exception:
-                    texts.append("")
-            return "\n".join(texts)
+            # pdfminer returns a single string for the whole document
+            text = extract_text(path) or ""
         except Exception:
             pass
-    raise RuntimeError("No PDF backend available to read PDF text. Install pdfminer.six or PyPDF2.")
 
+    if text is None and PYPDF2_AVAILABLE:
+        try:
+            reader = PdfReader(path)
+            # Use form-feed as page separator to preserve page boundaries
+            page_texts = []
+            for page in reader.pages:
+                try:
+                    page_texts.append(page.extract_text() or "")
+                except Exception:
+                    page_texts.append("")
+            text = "\n\x0c\n".join(page_texts)  # \x0c = form feed
+        except Exception:
+            pass
+
+    if text is None:
+        raise RuntimeError(
+            "No PDF backend available to read PDF text. Install pdfminer.six or PyPDF2."
+        )
+
+    # Write to .txt beside the PDF
+    txt_path = _txt_path_for(path)
+    # Use UTF-8 with newline normalization
+    try:
+        print(f"\nWriting text to {txt_path}")
+        with open(txt_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    except Exception as e:
+        # If writing fails, still return the text but surface a helpful error
+        raise RuntimeError(f"Extracted text but failed to write '{txt_path}': {e}")
+
+    return text
 def read_pdf_pages(path: str) -> List[str]:
     """Return list of text from each page of a PDF."""
+    print(f"\nReading pages from {path}")
     if PYPDF2_AVAILABLE:
         try:
             reader = PdfReader(path)
@@ -55,6 +87,16 @@ def read_pdf_pages(path: str) -> List[str]:
                     pages.append(page.extract_text() or "")
                 except Exception:
                     pages.append("")
+                    
+            # Write all pages to a single text file
+            txt_path = _txt_path_for(path)
+            try:
+                print(f"Writing {len(pages)} pages to {txt_path}")
+                with open(txt_path, "w", encoding="utf-8", newline="\n") as f:
+                    # Join pages with form feed character to preserve page boundaries
+                    f.write("\n\x0c\n".join(pages))
+            except Exception as e:
+                print(f"Warning: Failed to write pages to '{txt_path}': {e}")
             return pages
         except Exception:
             pass
@@ -394,7 +436,9 @@ def process_care_plan_comprehensive(path: str, debug=False) -> List[Tuple[str, O
 
 rows: List[Tuple[str, Optional[int], str, bool]] = []  # (Resident Name, mL Goal, Source File, Has Feeding Tube)
 
+print(f"\nProcessing {len(CARE_PLAN_FILES)} care plan files")
 for pdf_path in CARE_PLAN_FILES:
+    print(f"\nProcessing {pdf_path}")
     if os.path.exists(pdf_path):
         try:
             # Enable debugging for the first PDF to see what's happening (disabled for production)

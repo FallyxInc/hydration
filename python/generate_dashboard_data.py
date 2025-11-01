@@ -229,13 +229,20 @@ def validate_and_clean_dashboard_data():
         'bowel',
         'disorder',
         'stroke',
-        'lacunar'
-        'resisting care',
+        'lacunar',
+        'resisting',
         'fracture',
         'anxiety',
-        'acute pain'
-        'degeneration'
-        'potential'
+        'acute pain',
+        'degeneration',
+        'potential',
+        'daily',
+        'boost',
+        'carb',
+        'smart',
+        'once',
+        'corticobasal',
+        'ganglia'
     ]
     filtered_data = []
     filtered_out = []
@@ -256,7 +263,6 @@ def validate_and_clean_dashboard_data():
             print(f"   ... and {len(filtered_out) - 10} more")
     final_data = filtered_data
     print(f"📊 After filtering: {len(final_data)} entries remain")
-    
     # Generate updated JavaScript file
     js_content = f"""// Auto-generated dashboard data from hydration_goals.csv
 // Generated on: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
