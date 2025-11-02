@@ -25,6 +25,15 @@ def read_pdf_text(path: str) -> str:
             pass
     raise RuntimeError("Please install PyPDF2 to parse PDFs.")
 
+def clean_name(name: str) -> str:
+    """Clean name by normalizing Unicode whitespace (including non-breaking spaces) to regular spaces."""
+    import unicodedata
+    # Replace all Unicode whitespace characters (including \u00a0 non-breaking space) with regular spaces
+    name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+    # Collapse multiple spaces to single space and strip
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
 def extract_resident_name(text: str) -> Optional[str]:
     """Extract the FULL resident name from PDF format."""
     # Pattern 1: Look for "Resident Name:" format in hydration-data PDFs
@@ -36,6 +45,7 @@ def extract_resident_name(text: str) -> Optional[str]:
             if "Resident Location:" in after_name:
                 name_part = after_name.split("Resident Location:")[0]
                 name = name_part.strip().upper()
+                name = clean_name(name)
                 
                 # Remove trailing non-letter characters (like 'R' at the end)
                 name = re.sub(r'[^A-Z\s'']+$', '', name).strip()
@@ -61,15 +71,15 @@ def extract_resident_name(text: str) -> Optional[str]:
     # This matches patterns like "BAI, SE BOONG (900051001725)" or "McCALLA, KITT ROY (900051001932)"
     m = re.search(r"([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)\s*\([0-9]+\)", text)
     if m:
-        last_name = m.group(1).strip()
-        first_name = m.group(2).strip()
+        last_name = clean_name(m.group(1).strip())
+        first_name = clean_name(m.group(2).strip())
         return f"{last_name}, {first_name}"
     
     # Pattern 3: Look for standalone name patterns like "BAI, SE BOONG" without ID
     m = re.search(r"([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)(?=\s*\(|\s*$|\s*\d)", text)
     if m:
-        last_name = m.group(1).strip()
-        first_name = m.group(2).strip()
+        last_name = clean_name(m.group(1).strip())
+        first_name = clean_name(m.group(2).strip())
         return f"{last_name}, {first_name}"
     
     return None

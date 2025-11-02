@@ -7,6 +7,24 @@ This creates a scalable way to update the dashboard data without modifying the H
 import csv
 import json
 import os
+import re
+import unicodedata
+
+def normalize_to_last_first(name: str) -> str:
+    """Normalize name to 'Last, First' format, removing middle names."""
+    # Clean Unicode whitespace artifacts
+    name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+    name = re.sub(r'\s+', ' ', name).strip()
+    # Normalize to "Last, First" format
+    if ',' in name:
+        parts = name.split(',', 1)
+        if len(parts) == 2:
+            last_name = parts[0].strip()
+            first_parts = parts[1].strip().split()
+            if first_parts:
+                first_name = first_parts[0]  # Take only the first name
+                return f"{last_name}, {first_name}"
+    return name
 
 def generate_dashboard_data():
     """Read hydration_goals.csv and generate JavaScript data file."""
@@ -30,6 +48,9 @@ def generate_dashboard_data():
                 
             # Parse the data
             name = row.get('Resident Name', '').strip().strip('"')
+            # Clean Unicode whitespace artifacts (non-breaking spaces, etc.)
+            name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+            name = re.sub(r'\s+', ' ', name).strip()
             goal = row.get('mL Goal', '').strip()
             source = row.get('Source File', '').strip()
             missed3_days = row.get('Missed 3 Days', '').strip().lower()
@@ -140,15 +161,22 @@ def validate_and_clean_dashboard_data():
         print(f"❌ Error parsing JSON: {e}")
         return
     
-    print(f"📊 Found {len(residents_data)} total entries")
-    
-    # Find duplicates by name
-    name_groups = {}
+    # Clean Unicode whitespace artifacts from names
     for resident in residents_data:
         name = resident['name']
-        if name not in name_groups:
-            name_groups[name] = []
-        name_groups[name].append(resident)
+        cleaned_name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+        cleaned_name = re.sub(r'\s+', ' ', cleaned_name).strip()
+        resident['name'] = cleaned_name
+    
+    print(f"📊 Found {len(residents_data)} total entries")
+    
+    name_groups = {}
+    for resident in residents_data:
+        original_name = resident['name']
+        normalized_name = normalize_to_last_first(original_name)  
+        if normalized_name not in name_groups:
+            name_groups[normalized_name] = []
+        name_groups[normalized_name].append(resident)
     
     # Merge duplicates
     final_data = residents_data
@@ -242,7 +270,9 @@ def validate_and_clean_dashboard_data():
         'smart',
         'once',
         'corticobasal',
-        'ganglia'
+        'ganglia',
+        'physician',
+        'location',
     ]
     filtered_data = []
     filtered_out = []
