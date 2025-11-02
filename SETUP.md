@@ -34,7 +34,6 @@ cd hydration
 
 #### Node.js Dependencies
 ```bash
-cd hydration-app
 npm install
 ```
 
@@ -81,7 +80,7 @@ pip install PyPDF2 pdfminer.six
 
 ### Step 4: Environment Configuration
 
-Create `hydration-app/.env.local` file:
+Create `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
@@ -93,7 +92,6 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
 ### Step 5: Run the Application
 ```bash
-cd hydration-app
 npm run dev
 ```
 
@@ -152,19 +150,19 @@ hydration-data/
 
 #### 4.1 Extract Resident Information
 ```bash
-python3 careplan.py
+python3 python/careplan.py
 ```
 This creates `hydration_goals.csv` with resident names and hydration goals.
 
 #### 4.2 Process Hydration Data
 ```bash
-python3 process_dat_pdf.py
+python3 python/process_dat_pdf.py
 ```
 This updates the CSV with daily consumption data.
 
 #### 4.3 Generate Dashboard
 ```bash
-python3 generate_dashboard_data.py
+python3 python/generate_dashboard_data.py
 ```
 This creates `dashboard_data.js` for the dashboard.
 
@@ -257,7 +255,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_production_app_id
 **1. Firebase Authentication Not Working**
 ```bash
 # Check environment variables
-cat hydration-app/.env.local
+cat .env.local
 
 # Verify Firebase project has Authentication enabled
 # Check Firebase Console → Authentication → Sign-in method
@@ -275,19 +273,19 @@ pip install PyPDF2 pdfminer.six
 **3. File Processing Errors**
 ```bash
 # Check file permissions
-ls -la hydration-app/data/
+ls -la data/
 
 # Verify Python scripts are executable
-chmod +x careplan.py process_dat_pdf.py generate_dashboard_data.py
+chmod +x python/careplan.py python/process_dat_pdf.py python/generate_dashboard_data.py
 ```
 
 **4. Build Errors**
 ```bash
 # Clear Next.js cache
-rm -rf hydration-app/.next
+rm -rf .next
 
 # Reinstall dependencies
-cd hydration-app && npm install
+npm install
 ```
 
 **5. PDF Processing Issues**
@@ -301,10 +299,9 @@ Enable debug logging by setting environment variables:
 ```bash
 # For Python scripts
 export DEBUG=true
-python3 careplan.py
+python3 python/careplan.py
 
 # For Next.js app
-cd hydration-app
 DEBUG=* npm run dev
 ```
 
@@ -319,9 +316,9 @@ DEBUG=* npm run dev
 4. **User Management**: Create additional users with different roles
 
 ### Python Pipeline Testing
-1. **Care Plan Processing**: Run `python3 careplan.py` and check `hydration_goals.csv`
-2. **Hydration Data**: Run `python3 process_dat_pdf.py` and verify CSV updates
-3. **Dashboard Generation**: Run `python3 generate_dashboard_data.py` and check `dashboard_data.js`
+1. **Care Plan Processing**: Run `python3 python/careplan.py` and check `hydration_goals.csv`
+2. **Hydration Data**: Run `python3 python/process_dat_pdf.py` and verify CSV updates
+3. **Dashboard Generation**: Run `python3 python/generate_dashboard_data.py` and check `dashboard_data.js`
 4. **HTML Dashboard**: Open `hydration.html` and verify data display
 
 ---

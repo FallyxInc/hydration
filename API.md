@@ -314,9 +314,9 @@ interface Statistics {
 1. **File Upload** → API receives files
 2. **File Storage** → Files saved to `data/{retirementHome}/`
 3. **Script Execution** → Python scripts run automatically:
-   - `careplan.py` - Extract resident names and goals
-   - `process_dat_pdf.py` - Process consumption data
-   - `generate_dashboard_data.py` - Generate JavaScript data
+   - `python/careplan.py` - Extract resident names and goals
+   - `python/process_dat_pdf.py` - Process consumption data
+   - `python/generate_dashboard_data.py` - Generate JavaScript data
 4. **Data Storage** → Results saved to CSV and JavaScript files
 5. **API Response** → Success/failure returned to frontend
 
