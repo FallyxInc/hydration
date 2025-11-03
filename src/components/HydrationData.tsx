@@ -27,7 +27,8 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
-  // const [dateRange, setDateRange] = useState<number>(3);
+  const [dateRange, setDateRange] = useState<number>(3);
+  const [startDate, setStartDate] = useState<string>('');
   const [residentComments, setResidentComments] = useState<{[key: string]: string}>({});
   const [editingComments, setEditingComments] = useState<{[key: string]: string}>({});
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
@@ -51,6 +52,11 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     } catch (error) {
       console.error('Error saving comments to localStorage:', error);
     }
+  };
+
+  const formatDateForInput = (dateStr: string): string => {
+    const parts = dateStr.split('/');
+    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
   };
 
   const fetchHydrationData = useCallback(async () => {
@@ -148,9 +154,49 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     return 0;
   };
   
+  const parseDate = (dateStr: string): Date => {
+    const parts = dateStr.split('/');
+    return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+  };
+
+  const formatDateWithoutYear = (dateStr: string): string => {
+    const parts = dateStr.split('/');
+    return `${parts[0]}/${parts[1]}`;
+  };
+
+  const parseInputDate = (dateStr: string): Date => {
+    const parts = dateStr.split('-');
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  };
+
+  const getFilteredDateColumns = (): string[] => {
+    if (dateColumns.length === 0) return [];
+    if (!startDate) return dateColumns;
+    
+    const endDate = parseInputDate(startDate);
+    const endYear = endDate.getFullYear();
+    const endMonth = endDate.getMonth();
+    const endDay = endDate.getDate();
+    const endDateOnly = new Date(endYear, endMonth, endDay);
+    
+    const cutoffDate = new Date(endYear, endMonth, endDay - (dateRange - 1));
+    
+    return dateColumns.filter(date => {
+      const dateObj = parseDate(date);
+      const dateYear = dateObj.getFullYear();
+      const dateMonth = dateObj.getMonth();
+      const dateDay = dateObj.getDate();
+      const dateOnly = new Date(dateYear, dateMonth, dateDay);
+      
+      return dateOnly >= cutoffDate && dateOnly <= endDateOnly;
+    });
+  };
+
+  const filteredDateColumns = getFilteredDateColumns();
+
   const getMostRecentDateValue = (resident: Resident) => {
-    if (!resident.dateData || dateColumns.length === 0) return 0;
-    const mostRecentDate = dateColumns[dateColumns.length - 1];
+    if (!resident.dateData || filteredDateColumns.length === 0) return 0;
+    const mostRecentDate = filteredDateColumns[filteredDateColumns.length - 1];
     return resident.dateData[mostRecentDate] || 0;
   };
 
@@ -296,7 +342,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         'Resident Name',
         'Unit',
         'Goal (mL)',
-        ...dateColumns.map(date => date),
+        ...filteredDateColumns.map(date => date),
         'Average Intake (mL)',
         'Status',
         'Missed 3 Days',
@@ -314,7 +360,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           `"${cleanedName}"`,
           `"${resident.unit || 'Unknown'}"`,
           resident.goal,
-          ...dateColumns.map(date => resident.dateData?.[date] || 0),
+          ...filteredDateColumns.map(date => resident.dateData?.[date] || 0),
           resident.averageIntake || 0,
           `"${status}"`,
           `"${resident.missed3Days === 'yes' ? 'Yes' : 'No'}"`,
@@ -360,6 +406,16 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   useEffect(() => {
     filterResidents();
   }, [filterResidents]);
+
+  useEffect(() => {
+    if (dateColumns.length > 0 && !startDate) {
+      const today = new Date();
+      const todayYear = today.getFullYear();
+      const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+      const todayDay = String(today.getDate()).padStart(2, '0');
+      setStartDate(`${todayYear}-${todayMonth}-${todayDay}`);
+    }
+  }, [dateColumns, startDate]);
 
   if (loading) {
     return (
@@ -467,30 +523,43 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
 
         {/* Filter Controls Island - Right Side */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 relative">
-          {/* Center all units */}
-          <div className="flex items-center justify-center">
+          <div className="space-y-4">
             <div className="text-center w-full">
               <label className="block text-sm font-medium text-gray-700 mb-2">Unit Filter</label>
               <select
                 value={selectedUnit}
                 onChange={(e) => setSelectedUnit(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center w-full"
               >
                 <option value="all" className="text-center">All Units</option>
                 {getUniqueUnits().map(unit => (
                   <option key={unit} value={unit} className="text-center">Unit {unit}</option>
                 ))}
               </select>
-              <div
-                className="mt-2 text-sm text-cyan-600 font-medium text-center sticky bottom-0 bg-white py-1 z-10"
-                style={{ 
-                  background: 'white',
-                  left: 0,
-                  right: 0
-                }}
+            </div>
+            <div className="text-center w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(parseInt(e.target.value))}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center w-full mb-2"
               >
-                Showing {filteredResidents.length} of {residents.length} residents
-              </div>
+                <option value={3}>Past 3 Days</option>
+                <option value={4}>Past 4 Days</option>
+                <option value={5}>Past 5 Days</option>
+                <option value={6}>Past 6 Days</option>
+                <option value={7}>Past 7 Days</option>
+              </select>
+            </div>
+            <div
+              className="mt-2 text-sm text-cyan-600 font-medium text-center sticky bottom-0 bg-white py-1 z-10"
+              style={{ 
+                background: 'white',
+                left: 0,
+                right: 0
+              }}
+            >
+              Showing {filteredResidents.length} of {residents.length} residents
             </div>
           </div>
         </div>
@@ -510,11 +579,21 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             {/* Action buttons for home managers */}
             {userRole === 'home_manager' && (
               <div className="flex space-x-4">
+                {/* Date Range Selector */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-6  h-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm"
+                  />
+                </div>
+
                 {/* Export CSV button */}
                 <button
                   onClick={handleExportCSV}
                   disabled={exporting || residents.length === 0}
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
+                  className=" bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   {exporting ? (
                     <>
@@ -530,30 +609,6 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       Export CSV
-                    </>
-                  )}
-                </button>
-
-                {/* Delete button */}
-                <button
-                  onClick={handleDeleteData}
-                  disabled={deleting}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
-                >
-                  {deleting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete All Data
                     </>
                   )}
                 </button>
@@ -577,9 +632,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                {dateColumns.map((date) => (
-                  <th key={date} className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {date}
+                {filteredDateColumns.map((date) => (
+                  <th key={date} className="px-3 py-4 text-left text-xs font-semibold text-cyan-600 uppercase tracking-wider">
+                    {formatDateWithoutYear(date)}
                   </th>
                 ))}
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -646,7 +701,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       </div>
                     </div>
                   </td>
-                  {dateColumns.map((date) => (
+                  {filteredDateColumns.map((date) => (
                     <td key={date} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       {resident.dateData?.[date] || 0}
                     </td>
