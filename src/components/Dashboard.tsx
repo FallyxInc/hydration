@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
 import UserManagement from './UserManagement';
+import HomeManagement from './HomeManagement';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -151,6 +152,16 @@ export default function Dashboard() {
               >
                 User Management
               </button>
+              <button
+                onClick={() => setActiveTab('homes')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                  activeTab === 'homes'
+                    ? 'border-cyan-500 text-cyan-600'
+                    : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                }`}
+              >
+                Home Management
+              </button>
             </div>
           </div>
         </nav>
@@ -161,6 +172,7 @@ export default function Dashboard() {
         {activeTab === 'upload' && userRole === 'admin' && <FileUpload />}
         {activeTab === 'data' && userRole === 'home_manager' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
         {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
+        {activeTab === 'homes' && userRole === 'admin' && <HomeManagement />}
       </main>
     </div>
   );
