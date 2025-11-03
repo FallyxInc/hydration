@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, copyFile } from 'fs/promises';
+import { writeFile, mkdir, copyFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -42,13 +42,8 @@ async function uploadToFirebase(
     const csvData = await import('fs/promises').then(fs => fs.readFile(csvPath, 'utf-8'));
     console.log('✅ [FIRESTORE] CSV data read successfully');
 
-    // Read JS dashboard data
-    const jsPath = join(homeDir, 'dashboard_data.js');
-    const jsData = await import('fs/promises').then(fs => fs.readFile(jsPath, 'utf-8'));
-    console.log('✅ [FIRESTORE] Dashboard data read successfully');
-
     // Upload CSV data to Firestore
-    const csvDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'hydration-goals');
+    const csvDocRef = doc(db, 'retirement-homes', homeIdentifier,'hydration-goals');
     await setDoc(csvDocRef, {
       csvData: csvData,
       timestamp: new Date(),
@@ -57,15 +52,46 @@ async function uploadToFirebase(
     });
     console.log('✅ [FIRESTORE] CSV data uploaded successfully');
 
-    // Upload JS dashboard data to Firestore
-    const jsDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'dashboard-data');
-    await setDoc(jsDocRef, {
-      jsData: jsData,
-      timestamp: new Date(),
-      retirementHome: retirementHome,
-      homeIdentifier: homeIdentifier
-    });
-    console.log('✅ [FIRESTORE] Dashboard data uploaded successfully');
+    // Find all dashboard_{date}.js files
+    const files = await readdir(homeDir);
+    const dashboardFiles = files.filter(file => 
+      file.startsWith('dashboard_') && 
+      file.endsWith('.js') && 
+      /dashboard_\d{1,2}_\d{1,2}_\d{4}\.js/.test(file)
+    );
+    
+    console.log(`📊 [FIRESTORE] Found ${dashboardFiles.length} dashboard files: ${dashboardFiles.join(', ')}`);
+
+    // Upload each dashboard file to Firestore
+    for (const dashboardFile of dashboardFiles) {
+      try {
+        const dashboardPath = join(homeDir, dashboardFile);
+        const dashboardData = await import('fs/promises').then(fs => fs.readFile(dashboardPath, 'utf-8'));
+        
+        // Extract date from filename (e.g., dashboard_10_14_2025.js -> 10_14_2025)
+        const dateMatch = dashboardFile.match(/dashboard_(\d{1,2}_\d{1,2}_\d{4})\.js/);
+        const dateStr = dateMatch ? dateMatch[1] : dashboardFile.replace('dashboard_', '').replace('.js', '');
+        
+        // Upload to Firestore with date as document ID
+        const dashboardDocRef = doc(db, 'retirement-homes', homeIdentifier, 'dashboard-data', dateStr);
+        await setDoc(dashboardDocRef, {
+          jsData: dashboardData,
+          fileName: dashboardFile,
+          date: dateStr,
+          timestamp: new Date(),
+          retirementHome: retirementHome,
+          homeIdentifier: homeIdentifier
+        });
+        console.log(`✅ [FIRESTORE] Dashboard data uploaded successfully: ${dashboardFile} (date: ${dateStr})`);
+      } catch (error) {
+        console.error(`❌ [FIRESTORE] Failed to upload dashboard file ${dashboardFile}:`, error);
+        // Continue with other files even if one fails
+      }
+    }
+
+    if (dashboardFiles.length === 0) {
+      console.log('⚠️ [FIRESTORE] No dashboard_{date}.js files found in home directory');
+    }
 
     // Upload care plan PDFs to Firebase Storage (use provided buffers)
     for (const { fileName, bytes } of carePlanUploads) {
@@ -244,7 +270,6 @@ export async function POST(request: NextRequest) {
 
     // Process files using Python scripts
     const csvPath = join(homeDir, 'hydration_goals.csv');
-    const jsDataPath = join(homeDir, 'dashboard_data.js');
 
     // Install Python packages first (prefer python3 -m pip; fallback gracefully)
     console.log('🐍 [PYTHON] Installing required packages...');
@@ -311,7 +336,7 @@ export async function POST(request: NextRequest) {
     console.log('📖 [API] Reading generated data files...');
     const { readFile } = await import('fs/promises');
     let csvData = '';
-    let jsData = '';
+    const dashboardDataFiles: { fileName: string; data: string }[] = [];
 
     try {
       csvData = await readFile(csvPath, 'utf-8');
@@ -320,11 +345,29 @@ export async function POST(request: NextRequest) {
       console.log('❌ [API] CSV file not found or could not be read:', error);
     }
 
+    // Find and read all dashboard_{date}.js files
     try {
-      jsData = await readFile(jsDataPath, 'utf-8');
-      console.log(`✅ [API] JS data read successfully (${jsData.length} characters)`);
+      const files = await readdir(homeDir);
+      const dashboardFiles = files.filter(file => 
+        file.startsWith('dashboard_') && 
+        file.endsWith('.js') && 
+        /dashboard_\d{1,2}_\d{1,2}_\d{4}\.js/.test(file)
+      );
+      
+      console.log(`📊 [API] Found ${dashboardFiles.length} dashboard files to read`);
+      
+      for (const dashboardFile of dashboardFiles) {
+        try {
+          const dashboardPath = join(homeDir, dashboardFile);
+          const dashboardData = await readFile(dashboardPath, 'utf-8');
+          dashboardDataFiles.push({ fileName: dashboardFile, data: dashboardData });
+          console.log(`✅ [API] Dashboard file read successfully: ${dashboardFile} (${dashboardData.length} characters)`);
+        } catch (error) {
+          console.log(`❌ [API] Dashboard file not found or could not be read: ${dashboardFile}`, error);
+        }
+      }
     } catch (error) {
-      console.log('❌ [API] JS data file not found or could not be read:', error);
+      console.log('❌ [API] Could not read dashboard files:', error);
     }
 
     // Upload PDFs (via provided buffers) and processed data to Firebase
@@ -343,7 +386,7 @@ export async function POST(request: NextRequest) {
       carePlanFiles: carePlanFiles.length,
       hydrationDataFiles: hydrationDataFiles.length,
       csvDataLength: csvData.length,
-      jsDataLength: jsData.length,
+      dashboardFilesCount: dashboardDataFiles.length,
       retirementHome
     });
 
@@ -351,10 +394,11 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Files processed successfully',
       csvData,
-      jsData,
+      dashboardDataFiles,
       fileCounts: {
         carePlans: carePlanFiles.length,
-        hydrationData: hydrationDataFiles.length
+        hydrationData: hydrationDataFiles.length,
+        dashboardFiles: dashboardDataFiles.length
       }
     });
 

@@ -12,10 +12,7 @@ interface Resident {
   goal: number;
   source: string;
   missed3Days: string;
-  day14: number;
-  day15: number;
-  day16: number;
-  yesterday: number;
+  dateData?: { [date: string]: number };
   unit?: string;
   averageIntake?: number;
   hasFeedingTube?: boolean;
@@ -35,6 +32,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [editingComments, setEditingComments] = useState<{[key: string]: string}>({});
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
   const [showFeedingTubePopup, setShowFeedingTubePopup] = useState<string | null>(null);
+  const [dateColumns, setDateColumns] = useState<string[]>([]);
 
   const loadSavedComments = () => {
     try {
@@ -93,6 +91,23 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           hasFeedingTube: resident.hasFeedingTube || false
         }));
         setResidents(processedResidents);
+        
+        // Extract all unique dates from all residents
+        const allDates = new Set<string>();
+        processedResidents.forEach((resident: any) => {
+          if (resident.dateData) {
+            Object.keys(resident.dateData).forEach(date => allDates.add(date));
+          }
+        });
+        
+        // Sort dates chronologically
+        const sortedDates = Array.from(allDates).sort((a, b) => {
+          const dateA = new Date(a.split('/')[2] + '-' + a.split('/')[0] + '-' + a.split('/')[1]);
+          const dateB = new Date(b.split('/')[2] + '-' + b.split('/')[0] + '-' + b.split('/')[1]);
+          return dateA.getTime() - dateB.getTime();
+        });
+        
+        setDateColumns(sortedDates);
       } else {
         console.error('❌ [HYDRATION DATA COMPONENT] API error:', data.error);
         setError(data.error || 'Failed to fetch data');
@@ -106,9 +121,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     }
   }, [userRole, retirementHome]);
 
-  const getGoalStatus = (goal: number, yesterday: number) => {
+  const getGoalStatus = (goal: number, value: number) => {
     if (goal === 0) return 'No goal set';
-    return yesterday >= goal ? 'Goal Met' : 'Below Goal';
+    return value >= goal ? 'Goal Met' : 'Below Goal';
   };
 
   const cleanResidentName = (name: string) => {
@@ -125,9 +140,18 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   };
 
   const calculateAverageIntake = (resident: any) => {
-    const days = [resident.day14, resident.day15, resident.day16, resident.yesterday];
-    const validDays = days.filter(day => day > 0);
-    return validDays.length > 0 ? Math.round(validDays.reduce((sum, day) => sum + day, 0) / validDays.length) : 0;
+    if (resident.dateData) {
+      const days = Object.values(resident.dateData) as number[];
+      const validDays = days.filter(day => day > 0);
+      return validDays.length > 0 ? Math.round(validDays.reduce((sum, day) => sum + day, 0) / validDays.length) : 0;
+    }
+    return 0;
+  };
+  
+  const getMostRecentDateValue = (resident: Resident) => {
+    if (!resident.dateData || dateColumns.length === 0) return 0;
+    const mostRecentDate = dateColumns[dateColumns.length - 1];
+    return resident.dateData[mostRecentDate] || 0;
   };
 
   const filterResidents = useCallback(() => {
@@ -272,12 +296,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         'Resident Name',
         'Unit',
         'Goal (mL)',
-        'Yesterday (mL)',
+        ...dateColumns.map(date => date),
         'Average Intake (mL)',
         'Status',
-        'Day 14',
-        'Day 15', 
-        'Day 16',
         'Missed 3 Days',
         'Has Feeding Tube',
         'Comments',
@@ -286,18 +307,16 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
 
       // Create CSV rows
       const csvRows = residents.map(resident => {
-        const status = getGoalStatus(resident.goal, resident.yesterday);
+        const mostRecent = getMostRecentDateValue(resident);
+        const status = getGoalStatus(resident.goal, mostRecent);
         const cleanedName = cleanResidentName(resident.name);
         return [
           `"${cleanedName}"`,
           `"${resident.unit || 'Unknown'}"`,
           resident.goal,
-          resident.yesterday,
+          ...dateColumns.map(date => resident.dateData?.[date] || 0),
           resident.averageIntake || 0,
           `"${status}"`,
-          resident.day14,
-          resident.day15,
-          resident.day16,
           `"${resident.missed3Days === 'yes' ? 'Yes' : 'No'}"`,
           `"${resident.hasFeedingTube ? 'Yes' : 'No'}"`,
           `"${residentComments[resident.name] || ''}"`,
@@ -328,9 +347,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     }
   };
 
-  const getStatusColor = (goal: number, yesterday: number) => {
+  const getStatusColor = (goal: number, value: number) => {
     if (goal === 0) return 'text-gray-500';
-    return yesterday >= goal ? 'text-green-600' : 'text-red-600';
+    return value >= goal ? 'text-green-600' : 'text-red-600';
   };
 
   useEffect(() => {
@@ -358,7 +377,10 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
     );
   }
 
-  const goalMetCount = filteredResidents.filter(r => r.goal > 0 && r.yesterday >= r.goal).length;
+  const goalMetCount = filteredResidents.filter(r => {
+    const mostRecent = getMostRecentDateValue(r);
+    return r.goal > 0 && mostRecent >= r.goal;
+  }).length;
   const missed3DaysCount = filteredResidents.filter(r => r.missed3Days === 'yes').length;
   const goalMetPercentage = filteredResidents.length > 0 ? (goalMetCount / filteredResidents.length * 100).toFixed(1) : '0';
 
@@ -543,34 +565,27 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-64 min-w-64">
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: '200px', width: 'auto' }}>
                   Resident Name
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Goal (mL)
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Yesterday (mL)
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Average (mL)
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Day 14
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Day 15
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Day 16
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {dateColumns.map((date) => (
+                  <th key={date} className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {date}
+                  </th>
+                ))}
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Missed 3 Days
                 </th>
-                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48 min-w-48 max-w-48">
+                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ minWidth: '150px', maxWidth: '200px' }}>
                    Comments
                  </th>
               </tr>
@@ -578,10 +593,10 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredResidents.map((resident, index) => (
                 <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-              <td className="px-6 py-4 text-sm font-medium text-gray-900 w-64 min-w-64">
-                <div className="flex items-center space-x-2">
-                  <div className="truncate" title={cleanResidentName(resident.name)}>
-                    <div className="font-medium text-gray-900">
+              <td className="px-3 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '200px', width: 'auto' }}>
+                <div className="flex items-start space-x-2">
+                  <div className="break-words min-w-0" title={cleanResidentName(resident.name)}>
+                    <div className="font-medium text-gray-900 break-words min-w-0">
                       {cleanResidentName(resident.name)}
                     </div>
                     <div className="text-xs text-gray-500 mt-1 flex items-center space-x-2">
@@ -605,16 +620,13 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                   </div>
                 </div>
               </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.goal}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {resident.yesterday}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                     {resident.averageIntake || 0}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <div className="flex flex-col space-y-2">
                       {/* Progress Bar */}
                       <div className="w-full">
@@ -622,7 +634,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                           <div 
                             className="h-3 rounded-full bg-gradient-to-r from-cyan-300 to-cyan-500 transition-all duration-300"
                             style={{ 
-                              width: `${Math.min((resident.day16 / resident.goal) * 100, 100)}%`,
+                              width: `${Math.min((getMostRecentDateValue(resident) / resident.goal) * 100, 100)}%`,
                               background: `linear-gradient(to right, #67e8f9, #0cc7ed)`
                             }}
                           ></div>
@@ -630,20 +642,16 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       </div>
                       {/* Percentage Text */}
                       <div className="text-xs font-medium text-gray-600 text-center">
-                        {resident.goal === 0 ? 'N/A' : `${Math.min(Math.round((resident.day16 / resident.goal) * 100), 100)}%`}
+                        {resident.goal === 0 ? 'N/A' : `${Math.min(Math.round((getMostRecentDateValue(resident) / resident.goal) * 100), 100)}%`}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {resident.day14}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {resident.day15}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {resident.day16}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  {dateColumns.map((date) => (
+                    <td key={date} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {resident.dateData?.[date] || 0}
+                    </td>
+                  ))}
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                       resident.missed3Days === 'yes' 
                         ? 'bg-red-100 text-red-800' 
@@ -652,7 +660,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       {resident.missed3Days === 'yes' ? 'Yes' : 'No'}
                     </span>
                   </td>
-                   <td className="px-6 py-4 w-48 min-w-48 max-w-48">
+                   <td className="px-3 py-4" style={{ minWidth: '150px', maxWidth: '200px' }}>
                      <div className="space-y-1">
                       {/* Display saved comment or editing area */}
                       {residentComments[resident.name] && !editingComments[resident.name] ? (

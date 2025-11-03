@@ -1,217 +1,228 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
+import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { getHomeIdentifier } from '@/lib/retirementHomeMapping';
 
-// Function to access local CSV data (fallback)
-async function accessLocalData(userRole: string, retirementHome: string) {
-  console.log('📁 [LOCAL DATA] Accessing local CSV data...');
+// Function to parse JavaScript dashboard file and extract hydrationData array
+function parseDashboardFile(content: string): any[] {
+  // Extract the hydrationData array from the JavaScript file
+  const match = content.match(/const hydrationData = (\[[\s\S]*?\]);/);
+  if (!match) {
+    throw new Error('Could not parse dashboard file - hydrationData not found');
+  }
   
-  // Determine data source based on user role
-  let csvPath: string;
+  try {
+    // Use eval to parse the JavaScript array (safe in server context)
+    const hydrationData = eval(`(${match[1]})`);
+    return hydrationData;
+  } catch (error) {
+    throw new Error(`Failed to parse hydrationData: ${error}`);
+  }
+}
+
+// Function to convert date from filename format (MM_DD_YYYY) to CSV format (MM/DD/YYYY)
+function convertDateFormat(dateStr: string): string {
+  return dateStr.replace(/_/g, '/');
+}
+
+// Function to access local dashboard data (fallback)
+async function accessLocalData(userRole: string, retirementHome: string) {
+  console.log('📁 [LOCAL DATA] Accessing local dashboard files...');
+  
+  // Determine data directory based on user role
+  let dataDir: string;
   
   if (userRole === 'admin') {
-    // Admin sees all data - use main CSV
-    csvPath = join(process.cwd(), 'hydration_goals.csv');
-    console.log('👑 [LOCAL DATA] Admin access - using main CSV:', csvPath);
+    // Admin sees all data - use main data directory
+    dataDir = process.cwd();
+    console.log('👑 [LOCAL DATA] Admin access - using main data directory:', dataDir);
   } else if (userRole === 'home_manager' && retirementHome) {
     // Home manager sees only their home's data
-    csvPath = join(process.cwd(), 'data', retirementHome, 'hydration_goals.csv');
-    console.log('🏠 [LOCAL DATA] Home manager access - using home-specific CSV:', csvPath);
+    dataDir = join(process.cwd(), 'data', retirementHome);
+    console.log('🏠 [LOCAL DATA] Home manager access - using home-specific directory:', dataDir);
   } else {
     throw new Error('Invalid user role or missing retirement home');
   }
   
   try {
-    console.log('📖 [LOCAL DATA] Reading CSV file:', csvPath);
-    const csvContent = await readFile(csvPath, 'utf-8');
-    console.log(`✅ [LOCAL DATA] CSV file read successfully (${csvContent.length} characters)`);
+    // Find all dashboard_{date}.js files
+    const files = await readdir(dataDir);
+    const dashboardFiles = files.filter(file => 
+      file.startsWith('dashboard_') && 
+      file.endsWith('.js') && 
+      /dashboard_\d{1,2}_\d{1,2}_\d{4}\.js/.test(file)
+    );
     
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',');
-    console.log('📊 [LOCAL DATA] CSV headers:', headers);
-    console.log(`📊 [LOCAL DATA] Total lines in CSV: ${lines.length}`);
+    console.log(`📊 [LOCAL DATA] Found ${dashboardFiles.length} dashboard files: ${dashboardFiles.join(', ')}`);
     
-    const residents = lines.slice(1).filter((line: string) => line.trim()).map((line: string) => {
-      // Parse CSV line properly handling quoted fields
-      const values: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
+    if (dashboardFiles.length === 0) {
+      console.log('⚠️ [LOCAL DATA] No dashboard files found');
+      return [];
+    }
+    
+    // Combine all dashboard files into a single resident map
+    const residentMap = new Map<string, any>();
+    
+    for (const dashboardFile of dashboardFiles) {
+      try {
+        const dashboardPath = join(dataDir, dashboardFile);
+        const dashboardContent = await readFile(dashboardPath, 'utf-8');
+        
+        // Extract date from filename (e.g., dashboard_10_14_2025.js -> 10/14/2025)
+        const dateMatch = dashboardFile.match(/dashboard_(\d{1,2}_\d{1,2}_\d{4})\.js/);
+        if (!dateMatch) {
+          console.log(`⚠️ [LOCAL DATA] Could not extract date from filename: ${dashboardFile}`);
+          continue;
         }
+        
+        const dateStr = convertDateFormat(dateMatch[1]);
+        console.log(`📅 [LOCAL DATA] Processing date: ${dateStr} from file: ${dashboardFile}`);
+        
+        // Parse the JavaScript file
+        const hydrationData = parseDashboardFile(dashboardContent);
+        console.log(`✅ [LOCAL DATA] Parsed ${hydrationData.length} residents from ${dashboardFile}`);
+        
+        // Merge data for each resident
+        for (const resident of hydrationData) {
+          const residentName = resident.name;
+          
+          if (!residentMap.has(residentName)) {
+            // First time seeing this resident - initialize
+            residentMap.set(residentName, {
+              name: residentName,
+              goal: resident.goal || 0,
+              source: resident.source || '',
+              missed3Days: resident.missed3Days || 'no',
+              hasFeedingTube: resident.hasFeedingTube || false,
+              dateData: {}
+            });
+          }
+          
+          // Add data for this date
+          const existingResident = residentMap.get(residentName);
+          existingResident.dateData[dateStr] = resident.data || 0;
+          
+          // Update other fields if they're missing or empty
+          if (!existingResident.source && resident.source) {
+            existingResident.source = resident.source;
+          }
+          if (existingResident.missed3Days === 'no' && resident.missed3Days === 'yes') {
+            existingResident.missed3Days = 'yes';
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [LOCAL DATA] Error processing dashboard file ${dashboardFile}:`, error);
+        // Continue with other files
       }
-      values.push(current.trim());
-      
-      const resident: any = {};
-      
-      headers.forEach((header: string, index: number) => {
-        const value = values[index]?.replace(/"/g, '').trim();
-        switch (header.trim()) {
-          case 'Resident Name':
-            resident.name = value;
-            break;
-          case 'mL Goal':
-            resident.goal = parseFloat(value) || 0;
-            break;
-          case 'Source File':
-            resident.source = value;
-            break;
-          case 'Missed 3 Days':
-            resident.missed3Days = value;
-            break;
-          case 'Day 14':
-            resident.day14 = parseFloat(value) || 0;
-            break;
-          case 'Day 15':
-            resident.day15 = parseFloat(value) || 0;
-            break;
-          case 'Day 16':
-            resident.day16 = parseFloat(value) || 0;
-            break;
-          case 'Yesterdays':
-            resident.yesterday = parseFloat(value) || 0;
-            break;
-          case 'Has Feeding Tube':
-            resident.hasFeedingTube = value === 'Yes';
-            break;
-        }
-      });
-      
-      return resident;
-    });
-
-    console.log(`✅ [LOCAL DATA] Processed ${residents.length} residents`);
+    }
+    
+    const residents = Array.from(residentMap.values());
+    console.log(`✅ [LOCAL DATA] Combined ${residents.length} unique residents from ${dashboardFiles.length} dashboard files`);
     return residents;
   } catch (error) {
-    console.log('❌ [LOCAL DATA] CSV file not found or could not be read:', error);
+    console.log('❌ [LOCAL DATA] Error reading dashboard files:', error);
     return [];
   }
 }
 
-// Function to access Firestore data
+// Function to access Firestore dashboard data
 async function accessFirestoreData(userRole: string, retirementHome: string) {
   if (!db) {
     console.log('⚠️ [FIRESTORE DATA] Database not available, falling back to local data');
     throw new Error('Firestore Database not available');
   }
 
-  console.log('🔥 [FIRESTORE DATA] Accessing Firestore data...');
+  console.log('🔥 [FIRESTORE DATA] Accessing Firestore dashboard data...');
   
   try {
-    let csvDocRef;
+    let dashboardCollectionRef;
     
     if (userRole === 'admin') {
       // Admin sees all data - for now, use the first available home's data
-      // In the future, this could be enhanced to aggregate data from all homes
       if (!retirementHome) {
         throw new Error('Admin access requires retirement home parameter');
       }
       const homeIdentifier = getHomeIdentifier(retirementHome);
-      csvDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'hydration-goals');
-      console.log('👑 [FIRESTORE DATA] Admin access - using home-specific CSV:', `${homeIdentifier}/data/hydration-goals`);
+      dashboardCollectionRef = collection(db, 'retirement-homes', homeIdentifier, 'dashboard-data');
+      console.log('👑 [FIRESTORE DATA] Admin access - using dashboard-data collection:', `${homeIdentifier}/dashboard-data`);
     } else if (userRole === 'home_manager' && retirementHome) {
       // Home manager sees only their home's data
       const homeIdentifier = getHomeIdentifier(retirementHome);
-      csvDocRef = doc(db, 'retirement-homes', homeIdentifier, 'data', 'hydration-goals');
-      console.log('🏠 [FIRESTORE DATA] Home manager access - using home-specific CSV:', `${homeIdentifier}/data/hydration-goals`);
+      dashboardCollectionRef = collection(db, 'retirement-homes', homeIdentifier, 'dashboard-data');
+      console.log('🏠 [FIRESTORE DATA] Home manager access - using dashboard-data collection:', `${homeIdentifier}/dashboard-data`);
     } else {
       throw new Error('Invalid user role or missing retirement home');
     }
 
-    // Get CSV data from Firestore
-    console.log('📥 [FIRESTORE DATA] Fetching document from Firestore...');
-    const csvDoc = await getDoc(csvDocRef);
+    // Get all dashboard documents from Firestore
+    console.log('📥 [FIRESTORE DATA] Fetching dashboard documents from Firestore...');
+    const dashboardDocs = await getDocs(dashboardCollectionRef);
     
-    if (!csvDoc.exists()) {
-      console.log('❌ [FIRESTORE DATA] Document does not exist in Firestore');
-      console.log('🔍 [FIRESTORE DATA] Document path:', csvDocRef.path);
-      throw new Error('CSV data not found in Firestore');
+    if (dashboardDocs.empty) {
+      console.log('❌ [FIRESTORE DATA] No dashboard documents found in Firestore');
+      throw new Error('Dashboard data not found in Firestore');
     }
     
-    const csvData = csvDoc.data();
-    if (!csvData || !csvData.csvData) {
-      console.log('❌ [FIRESTORE DATA] Document exists but has no csvData field');
-      console.log('🔍 [FIRESTORE DATA] Document data:', csvData);
-      throw new Error('CSV data field not found in Firestore document');
-    }
+    console.log(`📊 [FIRESTORE DATA] Found ${dashboardDocs.size} dashboard documents`);
     
-    const csvContent = csvData.csvData;
-    console.log(`✅ [FIRESTORE DATA] CSV content fetched successfully (${csvContent.length} characters)`);
+    // Combine all dashboard files into a single resident map
+    const residentMap = new Map<string, any>();
     
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',');
-    console.log('📊 [FIRESTORE DATA] CSV headers:', headers);
-    console.log(`📊 [FIRESTORE DATA] Total lines in CSV: ${lines.length}`);
-    
-    const residents = lines.slice(1).filter((line: string) => line.trim()).map((line: string) => {
-      // Parse CSV line properly handling quoted fields
-      const values: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
+    dashboardDocs.forEach((docSnapshot) => {
+      try {
+        const data = docSnapshot.data();
+        const jsData = data.jsData;
+        const dateStr = convertDateFormat(docSnapshot.id); // doc ID is in format MM_DD_YYYY
+        
+        if (!jsData) {
+          console.log(`⚠️ [FIRESTORE DATA] Dashboard document ${docSnapshot.id} has no jsData field`);
+          return;
         }
+        
+        console.log(`📅 [FIRESTORE DATA] Processing date: ${dateStr} from document: ${docSnapshot.id}`);
+        
+        // Parse the JavaScript file
+        const hydrationData = parseDashboardFile(jsData);
+        console.log(`✅ [FIRESTORE DATA] Parsed ${hydrationData.length} residents from document ${docSnapshot.id}`);
+        
+        // Merge data for each resident
+        for (const resident of hydrationData) {
+          const residentName = resident.name;
+          
+          if (!residentMap.has(residentName)) {
+            // First time seeing this resident - initialize
+            residentMap.set(residentName, {
+              name: residentName,
+              goal: resident.goal || 0,
+              source: resident.source || '',
+              missed3Days: resident.missed3Days || 'no',
+              hasFeedingTube: resident.hasFeedingTube || false,
+              dateData: {}
+            });
+          }
+          
+          // Add data for this date
+          const existingResident = residentMap.get(residentName);
+          existingResident.dateData[dateStr] = resident.data || 0;
+          
+          // Update other fields if they're missing or empty
+          if (!existingResident.source && resident.source) {
+            existingResident.source = resident.source;
+          }
+          if (existingResident.missed3Days === 'no' && resident.missed3Days === 'yes') {
+            existingResident.missed3Days = 'yes';
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [FIRESTORE DATA] Error processing dashboard document ${docSnapshot.id}:`, error);
+        // Continue with other documents
       }
-      values.push(current.trim());
-      
-      const resident: any = {};
-      
-      headers.forEach((header: string, index: number) => {
-        const value = values[index]?.replace(/"/g, '').trim();
-        switch (header.trim()) {
-          case 'Resident Name':
-            resident.name = value;
-            break;
-          case 'mL Goal':
-            resident.goal = parseFloat(value) || 0;
-            break;
-          case 'Source File':
-            resident.source = value;
-            break;
-          case 'Missed 3 Days':
-            resident.missed3Days = value;
-            break;
-          case 'Day 14':
-            resident.day14 = parseFloat(value) || 0;
-            break;
-          case 'Day 15':
-            resident.day15 = parseFloat(value) || 0;
-            break;
-          case 'Day 16':
-            resident.day16 = parseFloat(value) || 0;
-            break;
-          case 'Yesterdays':
-            resident.yesterday = parseFloat(value) || 0;
-            break;
-          case 'Has Feeding Tube':
-            resident.hasFeedingTube = value === 'Yes';
-            break;
-        }
-      });
-      
-      return resident;
     });
-
-    console.log(`✅ [FIRESTORE DATA] Processed ${residents.length} residents`);
+    
+    const residents = Array.from(residentMap.values());
+    console.log(`✅ [FIRESTORE DATA] Combined ${residents.length} unique residents from ${dashboardDocs.size} dashboard documents`);
     return residents;
   } catch (error) {
     console.error('❌ [FIRESTORE DATA] Error accessing Firestore:', error);
