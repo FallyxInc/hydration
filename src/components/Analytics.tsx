@@ -33,6 +33,13 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [trendAnalysis, setTrendAnalysis] = useState<TrendAnalysis | null>(null);
+  const [expandedLists, setExpandedLists] = useState<{
+    highRisk: boolean;
+    improving: boolean;
+  }>({
+    highRisk: false,
+    improving: false
+  });
 
   const fetchHydrationData = useCallback(async () => {
     try {
@@ -288,12 +295,22 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
         {/* High Risk Section */}
         {trendAnalysis && trendAnalysis.highRisk.length > 0 && (
           <div className="bg-white rounded-lg p-6 shadow-sm border border-red-200">
-            <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center">
-              <span className="mr-2">⚠️</span>
-              High Risk Residents - Action Required
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-red-600 flex items-center">
+                <span className="mr-2">⚠️</span>
+                High Risk Residents - Action Required
+              </h3>
+              {trendAnalysis.highRisk.length > 3 && (
+                <button
+                  onClick={() => setExpandedLists({ ...expandedLists, highRisk: !expandedLists.highRisk })}
+                  className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
+                >
+                  {expandedLists.highRisk ? 'Show Less' : `Show All (${trendAnalysis.highRisk.length})`}
+                </button>
+              )}
+            </div>
             <div className="space-y-3">
-              {trendAnalysis.highRisk.map((resident, index) => (
+              {(expandedLists.highRisk ? trendAnalysis.highRisk : trendAnalysis.highRisk.slice(0, 3)).map((resident, index) => (
                 <div key={index} className="border-l-4 border-red-500 pl-4 py-2 bg-red-50 rounded">
                   <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
                   <div className="text-sm text-gray-600 space-y-1 mt-1">
@@ -318,12 +335,22 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
         {/* Improving Section */}
         {trendAnalysis && trendAnalysis.improvingTrend.length > 0 && (
           <div className="bg-white rounded-lg p-6 shadow-sm border border-green-200">
-            <h3 className="text-xl font-bold text-green-600 mb-4 flex items-center">
-              <span className="mr-2">📈</span>
-              Improving Residents - Positive Trends
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-600 flex items-center">
+                <span className="mr-2">📈</span>
+                Improving Residents - Positive Trends
+              </h3>
+              {trendAnalysis.improvingTrend.length > 3 && (
+                <button
+                  onClick={() => setExpandedLists({ ...expandedLists, improving: !expandedLists.improving })}
+                  className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
+                >
+                  {expandedLists.improving ? 'Show Less' : `Show All (${trendAnalysis.improvingTrend.length})`}
+                </button>
+              )}
+            </div>
             <div className="space-y-3">
-              {trendAnalysis.improvingTrend.map((resident, index) => (
+              {(expandedLists.improving ? trendAnalysis.improvingTrend : trendAnalysis.improvingTrend.slice(0, 3)).map((resident, index) => (
                 <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
                   <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
                   <div className="text-sm text-gray-600 space-y-1 mt-1">
@@ -336,29 +363,6 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             </div>
           </div>
         )}
-      </div>
-
-      {/* Recommendations */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-bold text-blue-900 mb-3">Preventative Recommendations</h3>
-        <ul className="space-y-2 text-blue-800">
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span><strong>High Risk Residents:</strong> Schedule immediate check-ins and consider adjusting hydration strategies</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span><strong>Declining Trends:</strong> Monitor closely and investigate causes for decreased consumption</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span><strong>Consistently Low:</strong> Review and potentially adjust daily hydration goals</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span><strong>Feeding Tube Users:</strong> Ensure proper tube maintenance and monitoring protocols</span>
-          </li>
-        </ul>
       </div>
     </div>
   );
