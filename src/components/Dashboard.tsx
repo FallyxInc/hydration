@@ -8,6 +8,7 @@ import FileUpload from './FileUpload';
 import HydrationData from './HydrationData';
 import UserManagement from './UserManagement';
 import HomeManagement from './HomeManagement';
+import Analytics from './Analytics';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -127,50 +128,77 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Navigation - Only show for admins */}
-      {userRole === 'admin' && (
-        <nav className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('upload')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                  activeTab === 'upload'
-                    ? 'border-cyan-500 text-cyan-600'
-                    : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
-                }`}
-              >
-                File Upload
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                  activeTab === 'users'
-                    ? 'border-cyan-500 text-cyan-600'
-                    : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
-                }`}
-              >
-                User Management
-              </button>
-              <button
-                onClick={() => setActiveTab('homes')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                  activeTab === 'homes'
-                    ? 'border-cyan-500 text-cyan-600'
-                    : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
-                }`}
-              >
-                Home Management
-              </button>
-            </div>
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            {userRole === 'admin' && (
+              <>
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                    activeTab === 'upload'
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                  }`}
+                >
+                  File Upload
+                </button>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                    activeTab === 'users'
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                  }`}
+                >
+                  User Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('homes')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                    activeTab === 'homes'
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                  }`}
+                >
+                  Home Management
+                </button>
+              </>
+            )}
+            {userRole === 'home_manager' && (
+              <>
+                <button
+                  onClick={() => setActiveTab('data')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                    activeTab === 'data'
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                  }`}
+                >
+                  Hydration Data
+                </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                    activeTab === 'analytics'
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-cyan-600 hover:border-cyan-300'
+                  }`}
+                >
+                  Analytics & Trends
+                </button>
+              </>
+            )}
           </div>
-        </nav>
-      )}
+        </div>
+      </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {activeTab === 'upload' && userRole === 'admin' && <FileUpload />}
         {activeTab === 'data' && userRole === 'home_manager' && <HydrationData userRole={userRole} retirementHome={retirementHome} />}
+        {activeTab === 'analytics' && userRole === 'home_manager' && <Analytics userRole={userRole} retirementHome={retirementHome} />}
         {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
         {activeTab === 'homes' && userRole === 'admin' && <HomeManagement />}
       </main>

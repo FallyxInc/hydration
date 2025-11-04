@@ -32,9 +32,14 @@ export default function UserManagement() {
   const submissionRef = useRef<boolean>(false);
   const [submissionInProgress, setSubmissionInProgress] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [retirementHomes, setRetirementHomes] = useState<string[]>([]);
+  const [loadingHomes, setLoadingHomes] = useState(true);
+  const [homeSelectionMode, setHomeSelectionMode] = useState<'select' | 'create'>('select');
+  const [newHomeName, setNewHomeName] = useState('');
 
   useEffect(() => {
     fetchUsers();
+    fetchRetirementHomes();
   }, []);
 
   const fetchUsers = async () => {
@@ -54,6 +59,29 @@ export default function UserManagement() {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRetirementHomes = async () => {
+    try {
+      setLoadingHomes(true);
+      const response = await fetch('/api/retirement-homes');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch retirement homes: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setRetirementHomes(data.retirementHomes || []);
+      } else {
+        console.error('Error fetching retirement homes:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching retirement homes:', error);
+    } finally {
+      setLoadingHomes(false);
     }
   };
 
@@ -87,9 +115,24 @@ export default function UserManagement() {
       }
 
       // Validate retirement home for home managers
-      if (formData.role === 'home_manager' && !formData.retirementHome.trim()) {
-        setMessage('Error: Retirement home is required for home managers.');
-        return;
+      let finalRetirementHome = formData.retirementHome;
+      
+      if (formData.role === 'home_manager') {
+        if (homeSelectionMode === 'create') {
+          // Using new home name
+          if (!newHomeName.trim()) {
+            setMessage('Error: Please enter a retirement home name or select an existing home.');
+            return;
+          }
+          finalRetirementHome = newHomeName.trim();
+        } else {
+          // Using selected home
+          if (!formData.retirementHome || formData.retirementHome === '') {
+            setMessage('Error: Please select a retirement home or create a new one.');
+            return;
+          }
+          finalRetirementHome = formData.retirementHome;
+        }
       }
 
       console.log('Creating user with role:', formData.role, 'Email:', formData.email);
@@ -111,7 +154,7 @@ export default function UserManagement() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        retirementHome: formData.retirementHome ?? '',
+        retirementHome: finalRetirementHome ?? '',
         createdAt: new Date(),
         firebaseUid: firebaseUser.uid
       });
@@ -119,8 +162,11 @@ export default function UserManagement() {
 
       setMessage('User created successfully! You can now provide these credentials to the user to log in.');
       setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '' });
+      setNewHomeName('');
+      setHomeSelectionMode('select');
       setShowForm(false);
       fetchUsers();
+      fetchRetirementHomes(); // Refresh homes list in case a new one was created
     } catch (error: any) {
       console.error('Error creating user:', error);
       
@@ -396,44 +442,128 @@ export default function UserManagement() {
 
             {formData.role === 'home_manager' && (
               <div>
-                <label htmlFor="retirementHome" className="block text-sm font-medium text-gray-700">
-                  Retirement Home Name
+                <label htmlFor="retirementHome" className="block text-sm font-medium text-gray-700 mb-2">
+                  Retirement Home
                 </label>
-                <input
-                  type="text"
-                  id="retirementHome"
-                  value={formData.retirementHome}
-                  onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
-                  className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
-                  style={{ 
-                    '--tw-ring-color': '#0cc7ed',
-                    '--tw-border-color': '#0cc7ed'
-                  } as React.CSSProperties}
-                  onFocus={(e) => {
-                  (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
-                  (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
-                  (e.target as HTMLInputElement).style.boxShadow = 'none';
-                  }}
-                  placeholder="e.g., Sunset Manor, Golden Years, etc."
-                  required
-                />
+                
+                {/* Toggle between select and create */}
+                <div className="mb-3 flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHomeSelectionMode('select');
+                      setNewHomeName('');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      homeSelectionMode === 'select'
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Select Existing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHomeSelectionMode('create');
+                      setFormData({ ...formData, retirementHome: '' });
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      homeSelectionMode === 'create'
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Create New
+                  </button>
+                </div>
+
+                {homeSelectionMode === 'select' ? (
+                  <select
+                    id="retirementHome"
+                    value={formData.retirementHome}
+                    onChange={(e) => setFormData({ ...formData, retirementHome: e.target.value })}
+                    disabled={loadingHomes}
+                    className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    style={{ 
+                      '--tw-ring-color': '#0cc7ed',
+                      '--tw-border-color': '#0cc7ed'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      (e.target as HTMLSelectElement).style.borderColor = '#0cc7ed';
+                      (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
+                      (e.target as HTMLSelectElement).style.boxShadow = 'none';
+                    }}
+                    required
+                  >
+                    <option value="">
+                      {loadingHomes ? 'Loading retirement homes...' : 'Select a retirement home...'}
+                    </option>
+                    {retirementHomes.map((home) => (
+                      <option key={home} value={home}>
+                        {home}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    id="newRetirementHome"
+                    value={newHomeName}
+                    onChange={(e) => setNewHomeName(e.target.value)}
+                    className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                    style={{ 
+                      '--tw-ring-color': '#0cc7ed',
+                      '--tw-border-color': '#0cc7ed'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = '#0cc7ed';
+                      (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                      (e.target as HTMLInputElement).style.boxShadow = 'none';
+                    }}
+                    placeholder="e.g., Sunset Manor, Golden Years, etc."
+                    required
+                  />
+                )}
+                
+                {homeSelectionMode === 'select' && retirementHomes.length === 0 && !loadingHomes && (
+                  <p className="mt-1 text-sm text-amber-600">
+                    No existing retirement homes found. Please create a new one.
+                  </p>
+                )}
               </div>
             )}
 
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '' });
+                  setNewHomeName('');
+                  setHomeSelectionMode('select');
+                }}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={loading || formData.password.length < 6 || isSubmitting || submissionInProgress}
+                disabled={
+                  loading || 
+                  formData.password.length < 6 || 
+                  isSubmitting || 
+                  submissionInProgress ||
+                  (formData.role === 'home_manager' && 
+                    ((homeSelectionMode === 'select' && !formData.retirementHome) ||
+                     (homeSelectionMode === 'create' && !newHomeName.trim())))
+                }
                 className="text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                 style={{ backgroundColor: '#0cc7ed' }}
                 onMouseEnter={(e) => {

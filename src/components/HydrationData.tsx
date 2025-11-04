@@ -36,6 +36,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [dateColumns, setDateColumns] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [missedFilter, setMissedFilter] = useState<string | null>(null); // null = all, 'yes' = only missed, 'no' = only not missed
+  const [sortBy, setSortBy] = useState<'none' | 'goal-asc' | 'goal-desc' | 'avg-asc' | 'avg-desc'>('none');
 
   const loadSavedComments = () => {
     try {
@@ -224,8 +225,26 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       filtered = filtered.filter(resident => resident.missed3Days === missedFilter);
     }
     
+    // Sort residents
+    if (sortBy !== 'none') {
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'goal-asc':
+            return (a.goal || 0) - (b.goal || 0);
+          case 'goal-desc':
+            return (b.goal || 0) - (a.goal || 0);
+          case 'avg-asc':
+            return (a.averageIntake || 0) - (b.averageIntake || 0);
+          case 'avg-desc':
+            return (b.averageIntake || 0) - (a.averageIntake || 0);
+          default:
+            return 0;
+        }
+      });
+    }
+    
     setFilteredResidents(filtered);
-  }, [residents, selectedUnit, searchQuery, missedFilter]);
+  }, [residents, selectedUnit, searchQuery, missedFilter, sortBy]);
 
   const handleCommentChange = (residentName: string, comment: string) => {
     setEditingComments(prev => ({
@@ -661,11 +680,49 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: '200px', width: 'auto' }}>
                   Resident Name
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Goal (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('avg-')) {
+                      setSortBy('goal-asc');
+                    } else if (sortBy === 'goal-asc') {
+                      setSortBy('goal-desc');
+                    } else if (sortBy === 'goal-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('goal-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Goal (mL)</span>
+                    {sortBy === 'goal-asc' && <span className="text-cyan-600">↑</span>}
+                    {sortBy === 'goal-desc' && <span className="text-cyan-600">↓</span>}
+                  </div>
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Average (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('goal-')) {
+                      setSortBy('avg-asc');
+                    } else if (sortBy === 'avg-asc') {
+                      setSortBy('avg-desc');
+                    } else if (sortBy === 'avg-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('avg-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Average (mL)</span>
+                    {sortBy === 'avg-asc' && <span className="text-cyan-600">↑</span>}
+                    {sortBy === 'avg-desc' && <span className="text-cyan-600">↓</span>}
+                  </div>
                 </th>
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Status
@@ -718,7 +775,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <tr 
                   key={index} 
                   className={`transition-colors duration-200 ${
-                    resident.missed3Days === 'no' 
+                    resident.missed3Days === 'yes' 
                       ? 'bg-red-50 hover:bg-red-100' 
                       : 'bg-white hover:bg-gray-50'
                   }`}
