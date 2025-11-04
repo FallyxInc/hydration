@@ -312,15 +312,15 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 dark:border-cyan-400"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-        <div className="text-red-800">{error}</div>
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+        <div className="text-red-800 dark:text-red-300">{error}</div>
       </div>
     );
   }
@@ -333,15 +333,15 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
     color: string;
     description: string;
   }) => (
-    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl`} style={{ backgroundColor: `${color}20` }}>
             {icon}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500">{description}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
           </div>
         </div>
         <div className={`text-3xl font-bold`} style={{ color }}>
@@ -351,16 +351,16 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
       {residents.length > 0 && (
         <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
           {residents.slice(0, 5).map((resident, index) => (
-            <div key={index} className="text-sm text-gray-700 p-2 bg-gray-50 rounded">
+            <div key={index} className="text-sm text-gray-700 dark:text-gray-300 p-2 bg-gray-50 dark:bg-gray-700 rounded">
               <div className="font-medium">{cleanResidentName(resident.name)}</div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
                 Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL
                 {resident.unit && ` | Unit: ${resident.unit}`}
               </div>
             </div>
           ))}
           {residents.length > 5 && (
-            <div className="text-xs text-gray-500 text-center pt-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-2">
               +{residents.length - 5} more
             </div>
           )}
@@ -372,9 +372,9 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Preventative Analytics & Trends</h2>
-        <p className="text-gray-600">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Preventative Analytics & Trends</h2>
+        <p className="text-gray-600 dark:text-gray-300">
           Proactive insights to identify at-risk residents and track improvement patterns
         </p>
       </div>
@@ -410,9 +410,9 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
       </div>
 
       {/* Long-Term Trend Analysis */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Long-Term Trend Analysis</h2>
-        <p className="text-sm text-gray-600 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Long-Term Trend Analysis</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
           Holistic analysis of improvement patterns over weeks and months to identify genuine, sustained progress
         </p>
         
@@ -456,16 +456,16 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* High Risk Section */}
         {trendAnalysis && trendAnalysis.highRisk.length > 0 && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-red-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-red-200 dark:border-red-800 transition-colors duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-red-600 flex items-center">
+              <h3 className="text-xl font-bold text-red-600 dark:text-red-400 flex items-center">
                 <span className="mr-2">⚠️</span>
                 High Risk Residents - Action Required
               </h3>
               {trendAnalysis.highRisk.length > 3 && (
                 <button
                   onClick={() => setExpandedLists({ ...expandedLists, highRisk: !expandedLists.highRisk })}
-                  className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
+                  className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium"
                 >
                   {expandedLists.highRisk ? 'Show Less' : `Show All (${trendAnalysis.highRisk.length})`}
                 </button>
@@ -475,9 +475,9 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
               {(expandedLists.highRisk ? trendAnalysis.highRisk : trendAnalysis.highRisk.slice(0, 3)).map((resident, index) => {
                 const longTermDecline = trendAnalysis.decliningLongTerm.find(r => r.name === resident.name);
                 return (
-                  <div key={index} className="border-l-4 border-red-500 pl-4 py-2 bg-red-50 rounded">
-                    <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                  <div key={index} className="border-l-4 border-red-500 dark:border-red-400 pl-4 py-2 bg-red-50 dark:bg-red-900/20 rounded">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Current Avg: {resident.averageIntake || 0}mL</div>
                       <div>Unit: {resident.unit || 'Unknown'}</div>
                       {resident.missed3Days === 'yes' && (
@@ -502,16 +502,16 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
 
         {/* Improving Section */}
         {trendAnalysis && trendAnalysis.improvingTrend.length > 0 && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-green-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-green-200 dark:border-green-800 transition-colors duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-green-600 flex items-center">
+              <h3 className="text-xl font-bold text-green-600 dark:text-green-400 flex items-center">
                 <span className="mr-2">📈</span>
                 Improving Residents - Positive Trends
               </h3>
               {trendAnalysis.improvingTrend.length > 3 && (
                 <button
                   onClick={() => setExpandedLists({ ...expandedLists, improving: !expandedLists.improving })}
-                  className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
+                  className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium"
                 >
                   {expandedLists.improving ? 'Show Less' : `Show All (${trendAnalysis.improvingTrend.length})`}
                 </button>
@@ -519,9 +519,9 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             </div>
             <div className="space-y-3">
               {(expandedLists.improving ? trendAnalysis.improvingTrend : trendAnalysis.improvingTrend.slice(0, 3)).map((resident, index) => (
-                <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                  <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                  <div className="text-sm text-gray-600 space-y-1 mt-1">
+                <div key={index} className="border-l-4 border-green-500 dark:border-green-400 pl-4 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                     <div>Goal: {resident.goal}mL | Current Avg: {resident.averageIntake || 0}mL</div>
                     <div>Unit: {resident.unit || 'Unknown'}</div>
                     <div className="text-green-600 font-medium">✅ Showing improvement and meeting goals</div>
@@ -535,8 +535,8 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
 
       {/* Long-Term Improvement Details */}
       {(trendAnalysis && (trendAnalysis.longTermImproving.length > 0 || trendAnalysis.sustainedImprovement.length > 0 || trendAnalysis.weekOverWeekImproving.length > 0 || trendAnalysis.monthOverMonthImproving.length > 0)) && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-green-200">
-          <h3 className="text-xl font-bold text-green-600 mb-4 flex items-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-green-200 dark:border-green-800 transition-colors duration-200">
+          <h3 className="text-xl font-bold text-green-600 dark:text-green-400 mb-4 flex items-center">
             <span className="mr-2">🌟</span>
             Genuine Long-Term Improvement - Sustained Progress
           </h3>
@@ -544,12 +544,12 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           {/* Long-Term Improving */}
           {trendAnalysis.longTermImproving.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Consecutive Weeks of Improvement</h4>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Consecutive Weeks of Improvement</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trendAnalysis.longTermImproving.slice(0, 6).map((resident, index) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                    <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                  <div key={index} className="border-l-4 border-green-500 dark:border-green-400 pl-4 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
                         ✨ {resident.improvementWeeks} consecutive weeks improving | Avg +{resident.avgImprovement}mL/week
@@ -564,12 +564,12 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           {/* Sustained Improvement */}
           {trendAnalysis.sustainedImprovement.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Sustained Above Goal</h4>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Sustained Above Goal</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trendAnalysis.sustainedImprovement.slice(0, 6).map((resident, index) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                    <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                  <div key={index} className="border-l-4 border-green-500 dark:border-green-400 pl-4 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
                         ✅ {resident.weeksAboveGoal} weeks above goal | Improvement rate: +{resident.improvementRate}mL
@@ -584,12 +584,12 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           {/* Week-over-Week */}
           {trendAnalysis.weekOverWeekImproving.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Week-over-Week Improvement</h4>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Week-over-Week Improvement</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trendAnalysis.weekOverWeekImproving.slice(0, 6).map((resident, index) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                    <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                  <div key={index} className="border-l-4 border-green-500 dark:border-green-400 pl-4 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
                         📈 Improved by +{resident.weeklyChange}mL this week vs last week
@@ -604,12 +604,12 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           {/* Month-over-Month */}
           {trendAnalysis.monthOverMonthImproving.length > 0 && (
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Month-over-Month Improvement</h4>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Month-over-Month Improvement</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trendAnalysis.monthOverMonthImproving.slice(0, 6).map((resident, index) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                    <div className="font-semibold text-gray-900">{cleanResidentName(resident.name)}</div>
-                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                  <div key={index} className="border-l-4 border-green-500 dark:border-green-400 pl-4 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{cleanResidentName(resident.name)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
                         📆 Improved by +{resident.monthlyChange}mL this month vs last month
