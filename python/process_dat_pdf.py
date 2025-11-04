@@ -7,6 +7,7 @@ then update hydration_goals.csv with yesterday's consumption data.
 import csv
 import os
 import re
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # PDF parsing
@@ -25,6 +26,15 @@ def read_pdf_text(path: str) -> str:
             pass
     raise RuntimeError("Please install PyPDF2 to parse PDFs.")
 
+def clean_name(name: str) -> str:
+    """Clean name by normalizing Unicode whitespace (including non-breaking spaces) to regular spaces."""
+    import unicodedata
+    # Replace all Unicode whitespace characters (including \u00a0 non-breaking space) with regular spaces
+    name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+    # Collapse multiple spaces to single space and strip
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
 def extract_resident_name(text: str) -> Optional[str]:
     """Extract the FULL resident name from PDF format."""
     # Pattern 1: Look for "Resident Name:" format in hydration-data PDFs
@@ -36,6 +46,7 @@ def extract_resident_name(text: str) -> Optional[str]:
             if "Resident Location:" in after_name:
                 name_part = after_name.split("Resident Location:")[0]
                 name = name_part.strip().upper()
+                name = clean_name(name)
                 
                 # Remove trailing non-letter characters (like 'R' at the end)
                 name = re.sub(r'[^A-Z\s'']+$', '', name).strip()
@@ -61,15 +72,15 @@ def extract_resident_name(text: str) -> Optional[str]:
     # This matches patterns like "BAI, SE BOONG (900051001725)" or "McCALLA, KITT ROY (900051001932)"
     m = re.search(r"([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)\s*\([0-9]+\)", text)
     if m:
-        last_name = m.group(1).strip()
-        first_name = m.group(2).strip()
+        last_name = clean_name(m.group(1).strip())
+        first_name = clean_name(m.group(2).strip())
         return f"{last_name}, {first_name}"
     
     # Pattern 3: Look for standalone name patterns like "BAI, SE BOONG" without ID
     m = re.search(r"([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)(?=\s*\(|\s*$|\s*\d)", text)
     if m:
-        last_name = m.group(1).strip()
-        first_name = m.group(2).strip()
+        last_name = clean_name(m.group(1).strip())
+        first_name = clean_name(m.group(2).strip())
         return f"{last_name}, {first_name}"
     
     return None
@@ -116,6 +127,27 @@ def extract_total_by_day(text: str) -> List[float]:
                 break
     
     return totals
+
+def extract_start_date(text: str) -> Optional[datetime]:
+    """Extract the start date from PDF text in format 'Start Date: 10/14/2025'."""
+    m = re.search(r"Start\s*Date:\s*(\d{1,2})/(\d{1,2})/(\d{4})", text, flags=re.IGNORECASE)
+    if m:
+        try:
+            month = int(m.group(1))
+            day = int(m.group(2))
+            year = int(m.group(3))
+            return datetime(year, month, day)
+        except (ValueError, IndexError):
+            pass
+    return None
+
+def calculate_date_columns(start_date: datetime) -> List[str]:
+    """Calculate the three date column names based on start date."""
+    dates = []
+    for i in range(3):
+        date = start_date + timedelta(days=i)
+        dates.append(date.strftime("%m/%d/%Y"))
+    return dates
 
 def normalize_name(name: str) -> str:
     return re.sub(r"\s+", " ", name.strip()).upper()
@@ -271,114 +303,148 @@ def load_goals(csv_path: str) -> List[Dict[str, str]]:
             rows.append(r)
     return rows
 
-def save_goals(csv_path: str, rows: List[Dict[str, str]]) -> None:
-    fieldnames = list(rows[0].keys()) if rows else ["Resident Name", "mL Goal", "Source File"]
-    if "Missed 3 Days" not in fieldnames:
-        fieldnames.append("Missed 3 Days")
-    if "Day 14" not in fieldnames:
-        fieldnames.append("Day 14")
-    if "Day 15" not in fieldnames:
-        fieldnames.append("Day 15")
-    if "Day 16" not in fieldnames:
-        fieldnames.append("Day 16")
-    if "Yesterdays" not in fieldnames:
-        fieldnames.append("Yesterdays")
+def save_goals(csv_path: str, rows: List[Dict[str, str]], all_date_columns: set = None) -> None:
+    """Save goals with all date columns. all_date_columns should contain date strings in MM/DD/YYYY format."""
+    base_fieldnames = ["Resident Name", "mL Goal", "Source File", "Has Feeding Tube", "Missed 3 Days"]
+    
+    if rows:
+        existing_fieldnames = set(rows[0].keys())
+        date_columns = set()
+        
+        for row in rows:
+            for key in row.keys():
+                if re.match(r'\d{1,2}/\d{1,2}/\d{4}', key):
+                    date_columns.add(key)
+        
+        if all_date_columns:
+            date_columns.update(all_date_columns)
+        
+        sorted_date_columns = sorted(date_columns, key=lambda x: datetime.strptime(x, "%m/%d/%Y"))
+        
+        fieldnames = base_fieldnames + sorted_date_columns
+        other_columns = [f for f in existing_fieldnames if f not in base_fieldnames and f not in date_columns]
+        fieldnames.extend(sorted(other_columns))
+    else:
+        fieldnames = base_fieldnames
+        if all_date_columns:
+            sorted_date_columns = sorted(all_date_columns, key=lambda x: datetime.strptime(x, "%m/%d/%Y"))
+            fieldnames.extend(sorted_date_columns)
+    
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in rows:
             r.setdefault("Missed 3 Days", "")
-            r.setdefault("Day 14", "")
-            r.setdefault("Day 15", "")
-            r.setdefault("Day 16", "")
-            r.setdefault("Yesterdays", "")
+            for fieldname in fieldnames:
+                r.setdefault(fieldname, "")
             writer.writerow(r)
 
-def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = False) -> List[Dict[str, str]]:
-    """Process Dat.pdf and update the CSV rows. If is_extra=True, add values to existing data."""
+def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = False) -> Tuple[List[Dict[str, str]], set]:
+    """Process Dat.pdf and update the CSV rows. If is_extra=True, add values to existing data.
+    Returns (updated rows, set of all date columns encountered)"""
     name_to_idx: Dict[str, int] = {}
     for i, r in enumerate(rows):
         r.setdefault("Missed 3 Days", "")
-        r.setdefault("Yesterdays", "")
         n = normalize_name(r.get("Resident Name", ""))
         if n:
             name_to_idx[n] = i
 
+    all_date_columns = set()
+    default_start_date = None
+    
     # Read the PDF and process each page
     from PyPDF2 import PdfReader
+    reader = PdfReader(pdf_path)
+    
+    # First pass: find the most common start date to use as fallback
+    start_date_counts = {}
+    for page_num, page in enumerate(reader.pages):
+        page_text = page.extract_text()
+        start_date = extract_start_date(page_text)
+        if start_date:
+            date_str = start_date.strftime("%m/%d/%Y")
+            start_date_counts[date_str] = start_date_counts.get(date_str, 0) + 1
+    
+    if start_date_counts:
+        most_common_date_str = max(start_date_counts, key=start_date_counts.get)
+        try:
+            default_start_date = datetime.strptime(most_common_date_str, "%m/%d/%Y")
+        except ValueError:
+            pass
+    
+    # If no start dates found in file, use yesterday minus 2 days as default
+    if default_start_date is None:
+        default_start_date = datetime.now() - timedelta(days=2)
+        print(f"  Warning: No start dates found in PDF, using default: {default_start_date.strftime('%m/%d/%Y')}")
+    
+    # Second pass: process all pages
     reader = PdfReader(pdf_path)
     for page_num, page in enumerate(reader.pages):
         page_text = page.extract_text()
         res_name = extract_resident_name(page_text)
         totals = extract_total_by_day(page_text)
+        start_date = extract_start_date(page_text)
         
         if not res_name or not totals:
             continue
+        
+        # Use default start date if not found on this page
+        if not start_date:
+            start_date = default_start_date
+            print(f"  Warning: No start date found for {res_name} on page {page_num + 1}, using default: {start_date.strftime('%m/%d/%Y')}")
 
-        # Store individual day values and yesterday's total
-        day_14 = totals[0] if len(totals) > 0 else 0
-        day_15 = totals[1] if len(totals) > 1 else 0
-        day_16 = totals[2] if len(totals) > 2 else 0
-        y_value = day_16  # Day 16 is yesterday
-
+        # Calculate the three date columns based on start date
+        date_columns = calculate_date_columns(start_date)
+        all_date_columns.update(date_columns)
+        
+        # Store individual day values
+        day1_value = totals[0] if len(totals) > 0 else 0
+        day2_value = totals[1] if len(totals) > 1 else 0
+        day3_value = totals[2] if len(totals) > 2 else 0
+        
         idx = find_matching_resident(res_name, name_to_idx)
         if idx is None:
-            # Skip if resident not found in existing data - don't add new entries
             print(f"  Skipping {res_name} - not found in existing residents")
             continue
         
         if is_extra:
-            # This is extra hydration - ADD to existing values for each day
-            existing_day_14 = rows[idx].get("Day 14", "")
-            existing_day_15 = rows[idx].get("Day 15", "")
-            existing_day_16 = rows[idx].get("Day 16", "")
-            
+            # This is extra hydration - ADD to existing values for each date
             try:
-                # Add each day's extra value to the corresponding existing day
-                existing_14 = float(existing_day_14) if existing_day_14 else 0.0
-                existing_15 = float(existing_day_15) if existing_day_15 else 0.0
-                existing_16 = float(existing_day_16) if existing_day_16 else 0.0
+                existing_day1 = float(rows[idx].get(date_columns[0], "") or 0)
+                existing_day2 = float(rows[idx].get(date_columns[1], "") or 0)
+                existing_day3 = float(rows[idx].get(date_columns[2], "") or 0)
                 
-                new_14 = existing_14 + day_14
-                new_15 = existing_15 + day_15
-                new_16 = existing_16 + day_16
+                new_day1 = existing_day1 + day1_value
+                new_day2 = existing_day2 + day2_value
+                new_day3 = existing_day3 + day3_value
                 
-                print(f"Processing EXTRA {res_name}: {totals} (Day 14: {day_14} + {existing_14} = {new_14}, Day 15: {day_15} + {existing_15} = {new_15}, Day 16: {day_16} + {existing_16} = {new_16})")
+                print(f"Processing EXTRA {res_name}: {totals} ({date_columns[0]}: {day1_value} + {existing_day1} = {new_day1}, {date_columns[1]}: {day2_value} + {existing_day2} = {new_day2}, {date_columns[2]}: {day3_value} + {existing_day3} = {new_day3})")
                 
-                rows[idx]["Day 14"] = f"{new_14}"
-                rows[idx]["Day 15"] = f"{new_15}"
-                rows[idx]["Day 16"] = f"{new_16}"
-                rows[idx]["Yesterdays"] = f"{new_16}"  # Day 16 is yesterday
-            except ValueError:
-                print(f"  Warning: Could not parse existing values for {res_name}, setting to new values")
-                rows[idx]["Day 14"] = f"{day_14}"
-                rows[idx]["Day 15"] = f"{day_15}"
-                rows[idx]["Day 16"] = f"{day_16}"
-                rows[idx]["Yesterdays"] = f"{day_16}"
+                rows[idx][date_columns[0]] = f"{new_day1}"
+                rows[idx][date_columns[1]] = f"{new_day2}"
+                rows[idx][date_columns[2]] = f"{new_day3}"
+            except ValueError as e:
+                print(f"  Warning: Could not parse existing values for {res_name}, setting to new values: {e}")
+                rows[idx][date_columns[0]] = f"{day1_value}"
+                rows[idx][date_columns[1]] = f"{day2_value}"
+                rows[idx][date_columns[2]] = f"{day3_value}"
         else:
             # Regular hydration - set all values
-            print(f"Processing {res_name}: {totals}")
+            print(f"Processing {res_name}: {totals} (dates: {date_columns})")
             
-            # Update existing entry - preserve existing goal and source file
-            existing_goal = rows[idx].get("mL Goal", "")
             existing_source = rows[idx].get("Source File", "")
-            
-            # Only update source file if it's empty
             if not existing_source:
                 rows[idx]["Source File"] = f"{os.path.basename(pdf_path)} - Page {page_num + 1}"
             
-            # Store all 3 days plus yesterday's total
-            rows[idx]["Day 14"] = f"{day_14}"
-            rows[idx]["Day 15"] = f"{day_15}"
-            rows[idx]["Day 16"] = f"{day_16}"
-            rows[idx]["Yesterdays"] = f"{y_value}"
+            rows[idx][date_columns[0]] = f"{day1_value}"
+            rows[idx][date_columns[1]] = f"{day2_value}"
+            rows[idx][date_columns[2]] = f"{day3_value}"
 
-        # "Missed 3 Days" logic will be calculated after all processing is complete
-
-    return rows
+    return rows, all_date_columns
 
 def calculate_missed_3_days(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    """Calculate 'Missed 3 Days' status based on final values after all processing."""
+    """Calculate 'Missed 3 Days' status - checks if there are any 3 consecutive days below goal.
+    Also checks if there are 3 consecutive days with value 0 (no data)."""
     for row in rows:
         goal_raw = row.get("mL Goal", "")
         try:
@@ -387,28 +453,42 @@ def calculate_missed_3_days(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
             goal = None
 
         if goal is not None:
-            # Get the final values after all processing (including extra hydration)
-            day_14_str = row.get("Day 14", "")
-            day_15_str = row.get("Day 15", "")
-            day_16_str = row.get("Day 16", "")
+            # Find all date columns and sort them
+            date_columns = []
+            for key in row.keys():
+                if re.match(r'\d{1,2}/\d{1,2}/\d{4}', key):
+                    try:
+                        date_obj = datetime.strptime(key, "%m/%d/%Y")
+                        date_columns.append((date_obj, key))
+                    except ValueError:
+                        continue
             
-            try:
-                day_14 = float(day_14_str) if day_14_str else 0
-                day_15 = float(day_15_str) if day_15_str else 0
-                day_16 = float(day_16_str) if day_16_str else 0
-                
-                # Check if all three consecutive days (14th, 15th, 16th) are below goal
-                if all([day_14 < goal, day_15 < goal, day_16 < goal]):
-                    # All 3 consecutive days were below goal = "Missed 3 Days" = "yes"
-                    row["Missed 3 Days"] = "yes"
-                else:
-                    # Not all 3 consecutive days were below goal = "Missed 3 Days" = "no"
-                    row["Missed 3 Days"] = "no"
-            except ValueError:
-                # If we can't parse the values, set to "no"
-                row["Missed 3 Days"] = "no"
+            date_columns.sort()
+            missed_3_days = False
+            
+            # Check all possible 3 consecutive day windows
+            if len(date_columns) >= 3:
+                for i in range(len(date_columns) - 2):
+                    date1 = date_columns[i]
+                    date2 = date_columns[i + 1]
+                    date3 = date_columns[i + 2]
+                    
+                    # Check if these dates are consecutive
+                    if (date2[0] - date1[0]).days == 1 and (date3[0] - date2[0]).days == 1:
+                        try:
+                            val1 = float(row.get(date1[1], "") or 0)
+                            val2 = float(row.get(date2[1], "") or 0)
+                            val3 = float(row.get(date3[1], "") or 0)
+                            
+                            # Check if all three days are 0 (no data) OR all three are below goal
+                            if (val1 == 0 and val2 == 0 and val3 == 0) or (val1 < goal and val2 < goal and val3 < goal):
+                                missed_3_days = True
+                                break
+                        except ValueError:
+                            continue
+            
+            row["Missed 3 Days"] = "yes" if missed_3_days else "no"
         else:
-            # No goal set, so can't determine "Missed 3 Days"
             row["Missed 3 Days"] = "no"
     
     return rows
@@ -448,11 +528,13 @@ def main():
             print(f"  {pdf_file}")
     
     rows = load_goals(csv_path)
+    all_date_columns = set()
     
     # Process regular PDF files first
     for pdf_path in regular_files:
         print(f"\nProcessing {pdf_path}...")
-        rows = process_dat_pdf(rows, pdf_path, is_extra=False)
+        rows, date_cols = process_dat_pdf(rows, pdf_path, is_extra=False)
+        all_date_columns.update(date_cols)
     
     # Then process extra files (these ADD to the existing values)
     if extra_files:
@@ -461,14 +543,16 @@ def main():
         print("=" * 80)
         for pdf_path in extra_files:
             print(f"\nProcessing EXTRA file {pdf_path}...")
-            rows = process_dat_pdf(rows, pdf_path, is_extra=True)
+            rows, date_cols = process_dat_pdf(rows, pdf_path, is_extra=True)
+            all_date_columns.update(date_cols)
     
     # Calculate "Missed 3 Days" status after all processing is complete
     print("\nCalculating 'Missed 3 Days' status based on final values...")
     rows = calculate_missed_3_days(rows)
     
-    save_goals(csv_path, rows)
+    save_goals(csv_path, rows, all_date_columns)
     print(f"\nUpdated {csv_path} using {len(regular_files)} regular PDF file(s) and {len(extra_files)} extra PDF file(s)")
+    print(f"Created {len(all_date_columns)} date columns: {sorted(all_date_columns, key=lambda x: datetime.strptime(x, '%m/%d/%Y'))}")
 
 if __name__ == "__main__":
     main()

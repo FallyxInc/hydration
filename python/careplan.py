@@ -109,6 +109,15 @@ def read_pdf_pages(path: str) -> List[str]:
     except Exception:
         return [read_pdf_text(path)]
 
+def clean_name(name: str) -> str:
+    """Clean name by normalizing Unicode whitespace (including non-breaking spaces) to regular spaces."""
+    import unicodedata
+    # Replace all Unicode whitespace characters (including \u00a0 non-breaking space) with regular spaces
+    name = ''.join(c if unicodedata.category(c)[0] != 'Z' or c == ' ' else ' ' for c in name)
+    # Collapse multiple spaces to single space and strip
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
 def extract_resident_names(text: str) -> List[str]:
     """
     Find ALL resident names in text - capture the FULL name including all parts.
@@ -121,6 +130,7 @@ def extract_resident_names(text: str) -> List[str]:
     # Pattern 1: Standard format "LASTNAME, FIRSTNAME (ID)" - flexible ID length (4+ digits)
     for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s+[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
+        name = clean_name(name)
         name_lower = name.lower()
         # Skip if the name contains any skip words (case-insensitive)
         if not any(skip_word.lower() in name_lower for skip_word in skip_words):
@@ -129,6 +139,8 @@ def extract_resident_names(text: str) -> List[str]:
     # Pattern 2: Alternative format "LASTNAME, FIRSTNAME (ID)" with different spacing - flexible ID length
     for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s*[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
+        name = clean_name(name)
+        name_lower = name.lower()
         # Skip if the name contains any skip words (case-insensitive)
         if not any(skip_word.lower() in name_lower for skip_word in skip_words):
             names.append(name)
@@ -136,8 +148,8 @@ def extract_resident_names(text: str) -> List[str]:
     # Pattern 3: Handle names with multiple parts (e.g., "O'SHAUGHNESSY, RUTH") - flexible ID length
     for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,?\s+[A-Z][A-Za-z\s\'-]+)\s*\(\d{4,}\)", text):
         name = m.group(1).strip().title()
-        # Clean up the name format
-        name = re.sub(r'\s+', ' ', name)  # Normalize whitespace
+        name = clean_name(name)
+        name_lower = name.lower()
         # Skip if the name contains any skip words (case-insensitive)
         if not any(skip_word.lower() in name_lower for skip_word in skip_words):
             names.append(name)
