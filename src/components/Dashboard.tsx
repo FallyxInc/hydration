@@ -10,13 +10,15 @@ import HydrationData from './HydrationData';
 import UserManagement from './UserManagement';
 import HomeManagement from './HomeManagement';
 import Analytics from './Analytics';
+import ChainAdminDashboard from './ChainAdminDashboard';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('data');
-  const [userRole, setUserRole] = useState<'admin' | 'home_manager' | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'home_manager' | 'chain_admin' | null>(null);
   const [retirementHome, setRetirementHome] = useState<string>('');
+  const [chain, setChain] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = useCallback(async () => {
@@ -52,11 +54,18 @@ export default function Dashboard() {
         const userData = userDoc.data();
         setUserRole(userData.role);
         setRetirementHome(userData.retirementHome || '');
+        setChain(userData.chain || '');
         
         // Home managers should only see data tab
         if (userData.role === 'home_manager') {
           console.log('Setting active tab to data');
           setActiveTab('data');
+        }
+        
+        // Chain admins should see chain dashboard
+        if (userData.role === 'chain_admin') {
+          console.log('Setting active tab to chain');
+          setActiveTab('chain');
         }
       } else {
         console.log('User document not found. Logging out and returning to login.');
@@ -108,7 +117,11 @@ export default function Dashboard() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {userRole === 'admin' ? 'Hydration Dashboard' : `${retirementHome} - Hydration Data`}
+                {userRole === 'admin' 
+                  ? 'Hydration Dashboard' 
+                  : userRole === 'chain_admin'
+                  ? `${chain} - Chain Dashboard`
+                  : `${retirementHome} - Hydration Data`}
               </h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -130,6 +143,7 @@ export default function Dashboard() {
               <span className="text-sm text-gray-600 dark:text-gray-300">
                 Welcome, {user?.email}
                 {retirementHome && ` (${retirementHome})`}
+                {chain && userRole === 'chain_admin' && ` (${chain})`}
               </span>
               <button
                 onClick={handleLogout}
@@ -204,6 +218,18 @@ export default function Dashboard() {
                 </button>
               </>
             )}
+            {userRole === 'chain_admin' && (
+              <button
+                onClick={() => setActiveTab('chain')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                  activeTab === 'chain'
+                    ? 'border-cyan-500 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:border-cyan-300 dark:hover:border-cyan-600'
+                }`}
+              >
+                Chain Overview
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -215,6 +241,7 @@ export default function Dashboard() {
         {activeTab === 'analytics' && userRole === 'home_manager' && <Analytics userRole={userRole} retirementHome={retirementHome} />}
         {activeTab === 'users' && userRole === 'admin' && <UserManagement />}
         {activeTab === 'homes' && userRole === 'admin' && <HomeManagement />}
+        {activeTab === 'chain' && userRole === 'chain_admin' && <ChainAdminDashboard chain={chain} />}
       </main>
     </div>
   );

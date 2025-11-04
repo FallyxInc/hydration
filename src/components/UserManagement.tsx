@@ -10,8 +10,9 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'home_manager';
-  retirementHome: string;
+  role: 'admin' | 'home_manager' | 'chain_admin';
+  retirementHome?: string;
+  chain?: string;
   createdAt: Date;
   firebaseUid?: string;
 }
@@ -24,8 +25,9 @@ export default function UserManagement() {
     name: '',
     email: '',
     password: '',
-    role: 'home_manager',
-    retirementHome: ''
+    role: 'home_manager' as 'admin' | 'home_manager' | 'chain_admin',
+    retirementHome: '',
+    chain: ''
   });
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,11 +38,40 @@ export default function UserManagement() {
   const [loadingHomes, setLoadingHomes] = useState(true);
   const [homeSelectionMode, setHomeSelectionMode] = useState<'select' | 'create'>('select');
   const [newHomeName, setNewHomeName] = useState('');
+  const [chainSelectionMode, setChainSelectionMode] = useState<'select' | 'create'>('select');
+  const [newChainName, setNewChainName] = useState('');
+  const [existingChains, setExistingChains] = useState<string[]>([]);
 
   useEffect(() => {
     fetchUsers();
     fetchRetirementHomes();
+    fetchChains();
   }, []);
+
+  const fetchChains = async () => {
+    try {
+      if (!db || db === null) {
+        console.error('Firebase not initialized. Please check environment variables.');
+        return;
+      }
+      let fbdb = db as Firestore;
+      const querySnapshot = await getDocs(collection(fbdb, 'users'));
+      const chains = new Set<string>();
+      querySnapshot.docs.forEach(doc => {
+        const userData = doc.data();
+        if (userData.chain && userData.chain.trim()) {
+          chains.add(userData.chain.trim());
+        }
+        // Also get chains from retirement homes
+        if (userData.retirementHome && userData.homeChain) {
+          chains.add(userData.homeChain.trim());
+        }
+      });
+      setExistingChains(Array.from(chains).sort());
+    } catch (error) {
+      console.error('Error fetching chains:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -116,6 +147,7 @@ export default function UserManagement() {
 
       // Validate retirement home for home managers
       let finalRetirementHome = formData.retirementHome;
+      let finalChain = formData.chain;
       
       if (formData.role === 'home_manager') {
         if (homeSelectionMode === 'create') {
@@ -133,9 +165,31 @@ export default function UserManagement() {
           }
           finalRetirementHome = formData.retirementHome;
         }
+        
+        // For home managers, also set chain if provided
+        if (chainSelectionMode === 'create' && newChainName.trim()) {
+          finalChain = newChainName.trim();
+        } else if (chainSelectionMode === 'select' && formData.chain && formData.chain.trim()) {
+          finalChain = formData.chain.trim();
+        }
+      } else if (formData.role === 'chain_admin') {
+        // Chain admin must have a chain
+        if (chainSelectionMode === 'create') {
+          if (!newChainName.trim()) {
+            setMessage('Error: Please enter a chain name or select an existing chain.');
+            return;
+          }
+          finalChain = newChainName.trim();
+        } else {
+          if (!formData.chain || formData.chain === '') {
+            setMessage('Error: Please select a chain or create a new one.');
+            return;
+          }
+          finalChain = formData.chain;
+        }
       }
 
-      console.log('Creating user with role:', formData.role, 'Email:', formData.email);
+      console.log('Creating user with role:', formData.role, 'Email:', formData.email, 'Chain:', finalChain);
 
       // Create Firebase Auth user using a secondary app to avoid logging out current user
       const secondaryApp: FirebaseApp = initializeApp(firebaseConfig, 'secondary');
@@ -150,23 +204,36 @@ export default function UserManagement() {
       // Then create the user document in Firestore with document ID matching Firebase UID
       let fbdb = db as Firestore;
       const userDocRef = doc(fbdb, 'users', firebaseUser.uid);
-      await setDoc(userDocRef, {
+      const userDataToSave: any = {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        retirementHome: finalRetirementHome ?? '',
         createdAt: new Date(),
         firebaseUid: firebaseUser.uid
-      });
+      };
+      
+      if (formData.role === 'home_manager') {
+        userDataToSave.retirementHome = finalRetirementHome ?? '';
+        if (finalChain) {
+          userDataToSave.chain = finalChain;
+        }
+      } else if (formData.role === 'chain_admin') {
+        userDataToSave.chain = finalChain;
+      }
+      
+      await setDoc(userDocRef, userDataToSave);
       console.log('Firestore user document created:', userDocRef.id);
 
       setMessage('User created successfully! You can now provide these credentials to the user to log in.');
-      setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '' });
+      setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '', chain: '' });
       setNewHomeName('');
+      setNewChainName('');
       setHomeSelectionMode('select');
+      setChainSelectionMode('select');
       setShowForm(false);
       fetchUsers();
       fetchRetirementHomes(); // Refresh homes list in case a new one was created
+      fetchChains(); // Refresh chains list
     } catch (error: any) {
       console.error('Error creating user:', error);
       
@@ -193,7 +260,7 @@ export default function UserManagement() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'admin' | 'home_manager') => {
+  const handleRoleChange = async (userId: string, newRole: 'admin' | 'home_manager' | 'chain_admin') => {
     try {
       if (!db || db === null) {
         console.error('Firebase not initialized. Please check environment variables.');
@@ -203,7 +270,12 @@ export default function UserManagement() {
       await updateDoc(doc(fbdb, 'users', userId), {
         role: newRole
       });
-      setMessage(`User role updated to ${newRole === 'admin' ? 'Admin' : 'Home Manager'} successfully!`);
+      const roleNames: Record<string, string> = {
+        'admin': 'Admin',
+        'home_manager': 'Home Manager',
+        'chain_admin': 'Chain Admin'
+      };
+      setMessage(`User role updated to ${roleNames[newRole] || newRole} successfully!`);
       fetchUsers();
     } catch (error) {
       setMessage(`Error updating user role: ${error}`);
@@ -413,12 +485,13 @@ export default function UserManagement() {
                 id="role"
                 value={formData.role}
                 onChange={(e) => {
-                  const newRole = e.target.value as 'admin' | 'home_manager';
+                  const newRole = e.target.value as 'admin' | 'home_manager' | 'chain_admin';
                   setFormData({ 
                     ...formData, 
                     role: newRole,
-                    // Clear retirement home when switching to admin
-                    retirementHome: newRole === 'admin' ? '' : formData.retirementHome
+                    // Clear retirement home when switching to admin or chain_admin
+                    retirementHome: (newRole === 'admin' || newRole === 'chain_admin') ? '' : formData.retirementHome,
+                    chain: newRole === 'chain_admin' ? formData.chain : ''
                   });
                 }}
                 className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
@@ -437,8 +510,74 @@ export default function UserManagement() {
               >
                 <option value="home_manager">Home Manager</option>
                 <option value="admin">Admin</option>
+                <option value="chain_admin">Chain Admin</option>
               </select>
             </div>
+
+            {formData.role === 'chain_admin' && (
+              <div>
+                <label htmlFor="chain" className="block text-sm font-medium text-gray-700 mb-2">
+                  Chain
+                </label>
+                
+                {/* Toggle between select and create */}
+                <div className="mb-3 flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChainSelectionMode('select');
+                      setNewChainName('');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      chainSelectionMode === 'select'
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Select Existing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChainSelectionMode('create');
+                      setFormData({ ...formData, chain: '' });
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      chainSelectionMode === 'create'
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Create New
+                  </button>
+                </div>
+
+                {chainSelectionMode === 'select' ? (
+                  <select
+                    id="chain"
+                    value={formData.chain}
+                    onChange={(e) => setFormData({ ...formData, chain: e.target.value })}
+                    className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                    required
+                  >
+                    <option value="">Select a chain...</option>
+                    {existingChains.map(chain => (
+                      <option key={chain} value={chain}>{chain}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    id="chain"
+                    value={newChainName}
+                    onChange={(e) => setNewChainName(e.target.value)}
+                    className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                    placeholder="Enter chain name (e.g., Responsive Senior Living)"
+                    required
+                  />
+                )}
+              </div>
+            )}
 
             {formData.role === 'home_manager' && (
               <div>
@@ -537,6 +676,66 @@ export default function UserManagement() {
                     No existing retirement homes found. Please create a new one.
                   </p>
                 )}
+
+                {/* Optional Chain Selection for Home Managers */}
+                <div className="mt-4">
+                  <label htmlFor="homeChain" className="block text-sm font-medium text-gray-700 mb-2">
+                    Chain (Optional)
+                  </label>
+                  <div className="mb-3 flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChainSelectionMode('select');
+                        setNewChainName('');
+                      }}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        chainSelectionMode === 'select'
+                          ? 'bg-gray-300 text-gray-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Select Existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChainSelectionMode('create');
+                        setFormData({ ...formData, chain: '' });
+                      }}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        chainSelectionMode === 'create'
+                          ? 'bg-gray-300 text-gray-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Create New
+                    </button>
+                  </div>
+
+                  {chainSelectionMode === 'select' ? (
+                    <select
+                      id="homeChain"
+                      value={formData.chain}
+                      onChange={(e) => setFormData({ ...formData, chain: e.target.value })}
+                      className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                    >
+                      <option value="">No chain (optional)</option>
+                      {existingChains.map(chain => (
+                        <option key={chain} value={chain}>{chain}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      id="newHomeChain"
+                      value={newChainName}
+                      onChange={(e) => setNewChainName(e.target.value)}
+                      className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base"
+                      placeholder="Enter chain name (optional)"
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -545,9 +744,11 @@ export default function UserManagement() {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '' });
+                  setFormData({ name: '', email: '', password: '', role: 'home_manager', retirementHome: '', chain: '' });
                   setNewHomeName('');
+                  setNewChainName('');
                   setHomeSelectionMode('select');
+                  setChainSelectionMode('select');
                 }}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
               >
@@ -603,7 +804,7 @@ export default function UserManagement() {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Retirement Home
+                  Retirement Home / Chain
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
@@ -625,19 +826,24 @@ export default function UserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'home_manager')}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'home_manager' | 'chain_admin')}
                       className={`text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer ${
                         user.role === 'admin' 
                           ? 'bg-purple-100 text-purple-800' 
+                          : user.role === 'chain_admin'
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}
                     >
                       <option value="home_manager">🏠 Home Manager</option>
                       <option value="admin">👑 Admin</option>
+                      <option value="chain_admin">🔗 Chain Admin</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.retirementHome || 'N/A'}
+                    {user.role === 'chain_admin' 
+                      ? (user.chain || 'N/A') 
+                      : (user.retirementHome || 'N/A')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString()}
