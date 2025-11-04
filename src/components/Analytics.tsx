@@ -380,7 +380,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
       </div>
 
       {/* Summary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <MetricCard
           title="High Risk Residents"
           count={trendAnalysis?.highRisk.length || 0}
@@ -390,20 +390,14 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           description="Residents requiring immediate attention"
         />
         <MetricCard
-          title="Declining Trend"
-          count={trendAnalysis?.decliningTrend.length || 0}
-          residents={trendAnalysis?.decliningTrend || []}
+          title="Declining Trend & Consistently Low"
+          count={(trendAnalysis?.decliningTrend.length || 0) + (trendAnalysis?.consistentlyLow.length || 0)}
+          residents={[...(trendAnalysis?.decliningTrend || []), ...(trendAnalysis?.consistentlyLow || [])].filter((resident, index, self) =>
+            index === self.findIndex(r => r.name === resident.name)
+          )}
           icon="📉"
           color="#f59e0b"
-          description="Recent consumption decreasing"
-        />
-        <MetricCard
-          title="Consistently Low"
-          count={trendAnalysis?.consistentlyLow.length || 0}
-          residents={trendAnalysis?.consistentlyLow || []}
-          icon="📊"
-          color="#f59e0b"
-          description="Average below 80% of goal"
+          description="Declining consumption or consistently below goal"
         />
         <MetricCard
           title="Improving Trend"
@@ -412,22 +406,6 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           icon="📈"
           color="#10b981"
           description="Recent consumption increasing"
-        />
-        <MetricCard
-          title="Feeding Tube Users"
-          count={trendAnalysis?.feedingTubeUsers.length || 0}
-          residents={trendAnalysis?.feedingTubeUsers || []}
-          icon="🥤"
-          color="#3b82f6"
-          description="Residents with feeding tubes"
-        />
-        <MetricCard
-          title="Low Goal, High Miss"
-          count={trendAnalysis?.lowGoalHighMiss.length || 0}
-          residents={trendAnalysis?.lowGoalHighMiss || []}
-          icon="🎯"
-          color="#f59e0b"
-          description="Low goal but still missing"
         />
       </div>
 
