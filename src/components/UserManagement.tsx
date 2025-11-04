@@ -41,6 +41,8 @@ export default function UserManagement() {
   const [chainSelectionMode, setChainSelectionMode] = useState<'select' | 'create'>('select');
   const [newChainName, setNewChainName] = useState('');
   const [existingChains, setExistingChains] = useState<string[]>([]);
+  const [editingChainForUser, setEditingChainForUser] = useState<string | null>(null);
+  const [newChainInput, setNewChainInput] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
@@ -61,10 +63,6 @@ export default function UserManagement() {
         const userData = doc.data();
         if (userData.chain && userData.chain.trim()) {
           chains.add(userData.chain.trim());
-        }
-        // Also get chains from retirement homes
-        if (userData.retirementHome && userData.homeChain) {
-          chains.add(userData.homeChain.trim());
         }
       });
       setExistingChains(Array.from(chains).sort());
@@ -267,9 +265,14 @@ export default function UserManagement() {
         return;
       }
       let fbdb = db as Firestore;
-      await updateDoc(doc(fbdb, 'users', userId), {
-        role: newRole
-      });
+      const updateData: any = { role: newRole };
+      
+      // If changing to admin, remove chain
+      if (newRole === 'admin') {
+        updateData.chain = null;
+      }
+      
+      await updateDoc(doc(fbdb, 'users', userId), updateData);
       const roleNames: Record<string, string> = {
         'admin': 'Admin',
         'home_manager': 'Home Manager',
@@ -279,6 +282,31 @@ export default function UserManagement() {
       fetchUsers();
     } catch (error) {
       setMessage(`Error updating user role: ${error}`);
+    }
+  };
+
+  const handleChainChange = async (userId: string, newChain: string) => {
+    try {
+      if (!db || db === null) {
+        console.error('Firebase not initialized. Please check environment variables.');
+        return;
+      }
+      let fbdb = db as Firestore;
+      const updateData: any = {};
+      
+      if (newChain.trim() === '') {
+        // Remove chain if empty
+        updateData.chain = null;
+      } else {
+        updateData.chain = newChain.trim();
+      }
+      
+      await updateDoc(doc(fbdb, 'users', userId), updateData);
+      setMessage(`Chain updated successfully!`);
+      fetchUsers();
+      fetchChains(); // Refresh chains list
+    } catch (error) {
+      setMessage(`Error updating chain: ${error}`);
     }
   };
 
@@ -791,36 +819,36 @@ export default function UserManagement() {
           <h3 className="text-base leading-6 font-medium text-gray-900">All Users</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Retirement Home / Chain
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Created
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {users.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     {user.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {user.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -840,18 +868,80 @@ export default function UserManagement() {
                       <option value="chain_admin">🔗 Chain Admin</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.role === 'chain_admin' 
-                      ? (user.chain || 'N/A') 
-                      : (user.retirementHome || 'N/A')}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {user.role === 'admin' ? (
+                      'N/A'
+                    ) : user.role === 'chain_admin' ? (
+                      user.chain || 'N/A'
+                    ) : user.role === 'home_manager' ? (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-gray-700 dark:text-gray-300">{user.retirementHome || 'N/A'}</span>
+                        <span className="text-gray-400 dark:text-gray-600">|</span>
+                        {editingChainForUser === user.id ? (
+                          <div className="flex items-center space-x-1">
+                            <input
+                              type="text"
+                              value={newChainInput}
+                              onChange={(e) => setNewChainInput(e.target.value)}
+                              onBlur={() => {
+                                if (newChainInput.trim()) {
+                                  handleChainChange(user.id, newChainInput.trim());
+                                }
+                                setEditingChainForUser(null);
+                                setNewChainInput('');
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  if (newChainInput.trim()) {
+                                    handleChainChange(user.id, newChainInput.trim());
+                                  }
+                                  setEditingChainForUser(null);
+                                  setNewChainInput('');
+                                } else if (e.key === 'Escape') {
+                                  setEditingChainForUser(null);
+                                  setNewChainInput('');
+                                }
+                              }}
+                              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400 w-40"
+                              autoFocus
+                              placeholder="Enter chain name"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <select
+                              value={user.chain || ''}
+                              onChange={(e) => {
+                                if (e.target.value === '__create_new__') {
+                                  setEditingChainForUser(user.id);
+                                  setNewChainInput(user.chain || '');
+                                } else {
+                                  handleChainChange(user.id, e.target.value);
+                                }
+                              }}
+                              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <option value="">No Chain</option>
+                              {existingChains.map(chain => (
+                                <option key={chain} value={chain}>{chain}</option>
+                              ))}
+                              <option value="__create_new__">+ Create New Chain</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      user.retirementHome || 'N/A'
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleDelete(user.id)}
-                      className="text-red-600 hover:text-red-900"
+                      className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                     >
                       Delete
                     </button>
