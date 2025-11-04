@@ -832,7 +832,10 @@ export default function UserManagement() {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Retirement Home / Chain
+                  Retirement Home
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Chain
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Created
@@ -869,70 +872,69 @@ export default function UserManagement() {
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {user.role === 'home_manager' ? (user.retirementHome || 'N/A') : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {user.role === 'admin' ? (
                       'N/A'
                     ) : user.role === 'chain_admin' ? (
                       user.chain || 'N/A'
                     ) : user.role === 'home_manager' ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-gray-700 dark:text-gray-300">{user.retirementHome || 'N/A'}</span>
-                        <span className="text-gray-400 dark:text-gray-600">|</span>
-                        {editingChainForUser === user.id ? (
-                          <div className="flex items-center space-x-1">
-                            <input
-                              type="text"
-                              value={newChainInput}
-                              onChange={(e) => setNewChainInput(e.target.value)}
-                              onBlur={() => {
+                      editingChainForUser === user.id ? (
+                        <div className="flex items-center space-x-1">
+                          <input
+                            type="text"
+                            value={newChainInput}
+                            onChange={(e) => setNewChainInput(e.target.value)}
+                            onBlur={() => {
+                              if (newChainInput.trim()) {
+                                handleChainChange(user.id, newChainInput.trim());
+                              }
+                              setEditingChainForUser(null);
+                              setNewChainInput('');
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
                                 if (newChainInput.trim()) {
                                   handleChainChange(user.id, newChainInput.trim());
                                 }
                                 setEditingChainForUser(null);
                                 setNewChainInput('');
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  if (newChainInput.trim()) {
-                                    handleChainChange(user.id, newChainInput.trim());
-                                  }
-                                  setEditingChainForUser(null);
-                                  setNewChainInput('');
-                                } else if (e.key === 'Escape') {
-                                  setEditingChainForUser(null);
-                                  setNewChainInput('');
-                                }
-                              }}
-                              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400 w-40"
-                              autoFocus
-                              placeholder="Enter chain name"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-1">
-                            <select
-                              value={user.chain || ''}
-                              onChange={(e) => {
-                                if (e.target.value === '__create_new__') {
-                                  setEditingChainForUser(user.id);
-                                  setNewChainInput(user.chain || '');
-                                } else {
-                                  handleChainChange(user.id, e.target.value);
-                                }
-                              }}
-                              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <option value="">No Chain</option>
-                              {existingChains.map(chain => (
-                                <option key={chain} value={chain}>{chain}</option>
-                              ))}
-                              <option value="__create_new__">+ Create New Chain</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
+                              } else if (e.key === 'Escape') {
+                                setEditingChainForUser(null);
+                                setNewChainInput('');
+                              }
+                            }}
+                            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400 w-40"
+                            autoFocus
+                            placeholder="Enter chain name"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <select
+                            value={user.chain || ''}
+                            onChange={(e) => {
+                              if (e.target.value === '__create_new__') {
+                                setEditingChainForUser(user.id);
+                                setNewChainInput(user.chain || '');
+                              } else {
+                                handleChainChange(user.id, e.target.value);
+                              }
+                            }}
+                            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="">No Chain</option>
+                            {existingChains.map(chain => (
+                              <option key={chain} value={chain}>{chain}</option>
+                            ))}
+                            <option value="__create_new__">+ Create New Chain</option>
+                          </select>
+                        </div>
+                      )
                     ) : (
-                      user.retirementHome || 'N/A'
+                      'N/A'
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
