@@ -34,6 +34,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
   const [showFeedingTubePopup, setShowFeedingTubePopup] = useState<string | null>(null);
   const [dateColumns, setDateColumns] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [missedFilter, setMissedFilter] = useState<string | null>(null); // null = all, 'yes' = only missed, 'no' = only not missed
+  const [sortBy, setSortBy] = useState<'none' | 'goal-asc' | 'goal-desc' | 'avg-asc' | 'avg-desc'>('none');
 
   const loadSavedComments = () => {
     try {
@@ -208,8 +211,40 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       filtered = filtered.filter(resident => resident.unit === selectedUnit);
     }
     
+    // Filter by search query (resident name)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(resident => {
+        const cleanedName = cleanResidentName(resident.name).toLowerCase();
+        return cleanedName.includes(query);
+      });
+    }
+    
+    // Filter by missed 3 days
+    if (missedFilter !== null) {
+      filtered = filtered.filter(resident => resident.missed3Days === missedFilter);
+    }
+    
+    // Sort residents
+    if (sortBy !== 'none') {
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'goal-asc':
+            return (a.goal || 0) - (b.goal || 0);
+          case 'goal-desc':
+            return (b.goal || 0) - (a.goal || 0);
+          case 'avg-asc':
+            return (a.averageIntake || 0) - (b.averageIntake || 0);
+          case 'avg-desc':
+            return (b.averageIntake || 0) - (a.averageIntake || 0);
+          default:
+            return 0;
+        }
+      });
+    }
+    
     setFilteredResidents(filtered);
-  }, [residents, selectedUnit]);
+  }, [residents, selectedUnit, searchQuery, missedFilter, sortBy]);
 
   const handleCommentChange = (residentName: string, comment: string) => {
     setEditingComments(prev => ({
@@ -578,14 +613,36 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             
             {/* Action buttons for home managers */}
             {userRole === 'home_manager' && (
-              <div className="flex space-x-4">
+              <div className="flex space-x-4 items-center">
+                {/* Search Filter */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Search residents..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-4 h-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 hover:text-gray-600"
+                      title="Clear search"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
                 {/* Date Range Selector */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="px-6  h-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm"
+                    className="px-6  h-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm"
                   />
                 </div>
 
@@ -593,7 +650,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <button
                   onClick={handleExportCSV}
                   disabled={exporting || residents.length === 0}
-                  className=" bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   {exporting ? (
                     <>
@@ -623,11 +680,49 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: '200px', width: 'auto' }}>
                   Resident Name
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Goal (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('avg-')) {
+                      setSortBy('goal-asc');
+                    } else if (sortBy === 'goal-asc') {
+                      setSortBy('goal-desc');
+                    } else if (sortBy === 'goal-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('goal-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Goal (mL)</span>
+                    {sortBy === 'goal-asc' && <span className="text-cyan-600">↑</span>}
+                    {sortBy === 'goal-desc' && <span className="text-cyan-600">↓</span>}
+                  </div>
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Average (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('goal-')) {
+                      setSortBy('avg-asc');
+                    } else if (sortBy === 'avg-asc') {
+                      setSortBy('avg-desc');
+                    } else if (sortBy === 'avg-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('avg-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Average (mL)</span>
+                    {sortBy === 'avg-asc' && <span className="text-cyan-600">↑</span>}
+                    {sortBy === 'avg-desc' && <span className="text-cyan-600">↓</span>}
+                  </div>
                 </th>
                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Status
@@ -637,8 +732,38 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                     {formatDateWithoutYear(date)}
                   </th>
                 ))}
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Missed 3 Days
+                <th 
+                  className={`px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${
+                    missedFilter !== null ? 'text-cyan-600 bg-cyan-50' : 'text-gray-500'
+                  }`}
+                  onClick={() => {
+                    // Cycle through: null -> 'yes' -> 'no' -> null
+                    if (missedFilter === null) {
+                      setMissedFilter('yes');
+                    } else if (missedFilter === 'yes') {
+                      setMissedFilter('no');
+                    } else {
+                      setMissedFilter(null);
+                    }
+                  }}
+                  title="Click to filter: All → Missed → Not Missed → All"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Missed 3 Days</span>
+                    {missedFilter !== null && (
+                      <span className="text-xs font-normal">
+                        ({missedFilter === 'yes' ? 'Missed' : 'Not Missed'})
+                      </span>
+                    )}
+                    <svg 
+                      className={`w-3 h-3 ${missedFilter !== null ? 'text-cyan-600' : 'text-gray-400'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                  </div>
                 </th>
                  <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ minWidth: '150px', maxWidth: '200px' }}>
                    Comments
@@ -647,7 +772,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredResidents.map((resident, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
+                <tr 
+                  key={index} 
+                  className={`transition-colors duration-200 ${
+                    resident.missed3Days === 'yes' 
+                      ? 'bg-red-50 hover:bg-red-100' 
+                      : 'bg-white hover:bg-gray-50'
+                  }`}
+                >
               <td className="px-3 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '200px', width: 'auto' }}>
                 <div className="flex items-start space-x-2">
                   <div className="break-words min-w-0" title={cleanResidentName(resident.name)}>
