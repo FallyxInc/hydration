@@ -9,6 +9,7 @@ interface HomeData {
   goalMetCount: number;
   goalMetPercentage: number;
   averageIntake: number;
+  downwardTrendingCount: number;
   residents: any[];
 }
 
@@ -16,7 +17,7 @@ interface ChainAdminDashboardProps {
   chain: string;
 }
 
-type GraphMetric = 'missed3Days' | 'residents' | 'goalMet' | 'averageIntake';
+type GraphMetric = 'missed3Days' | 'residents' | 'goalMet' | 'downwardTrending';
 
 export default function ChainAdminDashboard({ chain }: ChainAdminDashboardProps) {
   const [homesData, setHomesData] = useState<HomeData[]>([]);
@@ -73,10 +74,10 @@ export default function ChainAdminDashboard({ chain }: ChainAdminDashboardProps)
           name: home.homeName,
           value: home.goalMetCount
         }));
-      case 'averageIntake':
+      case 'downwardTrending':
         return homesData.map(home => ({
           name: home.homeName,
-          value: home.averageIntake
+          value: home.downwardTrendingCount
         }));
       default:
         return [];
@@ -91,8 +92,8 @@ export default function ChainAdminDashboard({ chain }: ChainAdminDashboardProps)
         return 'Homes by Number of Residents';
       case 'goalMet':
         return 'Homes by Number of Residents Meeting Goals';
-      case 'averageIntake':
-        return 'Homes by Average Intake (mL)';
+      case 'downwardTrending':
+        return 'Homes by Number of Downward Trending Residents';
       default:
         return '';
     }
@@ -143,7 +144,7 @@ export default function ChainAdminDashboard({ chain }: ChainAdminDashboardProps)
             <option value="missed3Days">Missed 3-Day Goal Hits</option>
             <option value="residents">Number of Residents</option>
             <option value="goalMet">Residents Meeting Goals</option>
-            <option value="averageIntake">Average Intake (mL)</option>
+            <option value="downwardTrending">Downward Trending Residents</option>
           </select>
         </div>
 
@@ -225,9 +226,13 @@ export default function ChainAdminDashboard({ chain }: ChainAdminDashboardProps)
               </div>
               
               <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Avg Intake</span>
-                <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {home.averageIntake} mL
+                <span className="text-sm text-gray-600 dark:text-gray-400">Downward Trending</span>
+                <span className={`text-lg font-semibold ${
+                  home.downwardTrendingCount > 0 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {home.downwardTrendingCount}
                 </span>
               </div>
             </div>

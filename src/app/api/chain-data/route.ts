@@ -64,8 +64,15 @@ export async function POST(request: NextRequest) {
       goalMetCount: number;
       goalMetPercentage: number;
       averageIntake: number;
+      downwardTrendingCount: number;
       residents: any[];
     }> = [];
+
+    // Helper function to parse date
+    function parseDate(dateStr: string): Date {
+      const parts = dateStr.split('/');
+      return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+    }
 
     for (const homeName of uniqueHomes) {
       try {
@@ -85,33 +92,77 @@ export async function POST(request: NextRequest) {
             goalMetCount: 0,
             goalMetPercentage: 0,
             averageIntake: 0,
+            downwardTrendingCount: 0,
             residents: []
           });
           continue;
         }
 
-        // Get the most recent dashboard file
-        const sortedFiles = dashboardFiles.sort().reverse();
-        const latestFile = sortedFiles[0];
-        const dashboardPath = join(dataDir, latestFile);
-        const dashboardContent = await readFile(dashboardPath, 'utf-8');
-        const hydrationData = parseDashboardFile(dashboardContent);
+        // Aggregate data from all dashboard files to get historical data
+        const residentMap = new Map<string, any>();
+        
+        for (const dashboardFile of dashboardFiles) {
+          try {
+            const dashboardPath = join(dataDir, dashboardFile);
+            const dashboardContent = await readFile(dashboardPath, 'utf-8');
+            const dateMatch = dashboardFile.match(/dashboard_(\d{1,2}_\d{1,2}_\d{4})\.js/);
+            if (!dateMatch) continue;
+            
+            const dateStr = convertDateFormat(dateMatch[1]);
+            const hydrationData = parseDashboardFile(dashboardContent);
 
-        const residents = hydrationData.map((resident: any) => {
-          const dateData: { [key: string]: number } = {};
-          // Calculate average intake from all data points
-          const values = Object.values(resident.data || {}).filter((v: any) => typeof v === 'number') as number[];
+            for (const resident of hydrationData) {
+              const residentName = resident.name;
+              if (!residentMap.has(residentName)) {
+                residentMap.set(residentName, {
+                  name: residentName,
+                  goal: resident.goal || 0,
+                  missed3Days: resident.missed3Days || 'no',
+                  hasFeedingTube: resident.hasFeedingTube || false,
+                  dateData: {}
+                });
+              }
+              const existingResident = residentMap.get(residentName);
+              existingResident.dateData[dateStr] = resident.data || 0;
+            }
+          } catch (error) {
+            console.error(`Error processing file ${dashboardFile}:`, error);
+          }
+        }
+
+        // Process residents and calculate metrics
+        const residents = Array.from(residentMap.values()).map((resident: any) => {
+          const dates = Object.keys(resident.dateData).sort((a, b) => {
+            const dateA = parseDate(a);
+            const dateB = parseDate(b);
+            return dateA.getTime() - dateB.getTime();
+          });
+          
+          const values = dates.map(date => resident.dateData[date] || 0);
           const averageIntake = values.length > 0 
             ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
             : 0;
 
           return {
-            name: resident.name,
-            goal: resident.goal || 0,
-            missed3Days: resident.missed3Days || 'no',
+            ...resident,
             averageIntake,
-            hasFeedingTube: resident.hasFeedingTube || false
+            dateData: resident.dateData,
+            dates,
+            values
           };
+        });
+
+        // Calculate downward trending residents
+        let downwardTrendingCount = 0;
+        residents.forEach((resident: any) => {
+          if (resident.dates && resident.dates.length >= 3 && resident.values && resident.values.length >= 3) {
+            const recentValues = resident.values.slice(-3);
+            const recentTrend = recentValues[recentValues.length - 1] - recentValues[0];
+            // Declining trend: recent values are decreasing by more than 100mL and current value is below 80% of goal
+            if (recentTrend < -100 && recentValues[recentValues.length - 1] < resident.goal * 0.8) {
+              downwardTrendingCount++;
+            }
+          }
         });
 
         const missed3DaysCount = residents.filter((r: any) => r.missed3Days === 'yes').length;
@@ -132,7 +183,14 @@ export async function POST(request: NextRequest) {
           goalMetCount,
           goalMetPercentage,
           averageIntake: totalAverageIntake,
-          residents
+          downwardTrendingCount,
+          residents: residents.map((r: any) => ({
+            name: r.name,
+            goal: r.goal,
+            missed3Days: r.missed3Days,
+            averageIntake: r.averageIntake,
+            hasFeedingTube: r.hasFeedingTube
+          }))
         });
       } catch (error) {
         console.error(`Error processing home ${homeName}:`, error);
@@ -143,6 +201,7 @@ export async function POST(request: NextRequest) {
           goalMetCount: 0,
           goalMetPercentage: 0,
           averageIntake: 0,
+          downwardTrendingCount: 0,
           residents: []
         });
       }
