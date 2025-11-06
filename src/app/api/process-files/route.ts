@@ -15,7 +15,8 @@ async function uploadToFirebase(
   homeDir: string,
   retirementHome: string,
   carePlanUploads: { fileName: string; bytes: Uint8Array }[],
-  hydrationUploads: { fileName: string; bytes: Uint8Array }[]
+  hydrationUploads: { fileName: string; bytes: Uint8Array }[],
+  ipcUploads: { fileName: string; bytes: Uint8Array }[]
 ) {
   const homeIdentifier = getHomeIdentifier(retirementHome);
   
@@ -33,6 +34,11 @@ async function uploadToFirebase(
     return;
   }
 
+  if (!ipcUploads) {
+    console.log('⚠️ [IPC] Firebase Storage not available, skipping IPC upload');
+    return;
+  }
+
   console.log('🔥 [FIRESTORE] Starting Firestore upload for retirement home:', retirementHome);
   console.log('🏠 [FIRESTORE] Using home identifier:', homeIdentifier);
   
@@ -43,7 +49,7 @@ async function uploadToFirebase(
     console.log('✅ [FIRESTORE] CSV data read successfully');
 
     // Upload CSV data to Firestore
-    const csvDocRef = doc(db, 'retirement-homes', homeIdentifier,'hydration-goals');
+    const csvDocRef = doc(db, 'retirement-homes', homeIdentifier,'hydration-goals', 'hydration_goals.csv');
     await setDoc(csvDocRef, {
       csvData: csvData,
       timestamp: new Date(),
@@ -129,6 +135,24 @@ async function uploadToFirebase(
       console.log(`✅ [STORAGE] Hydration data file uploaded to Storage: ${fileName}`);
     }
 
+    // Upload IPC data PDFs to Firebase Storage (use provided buffers)
+    for (const { fileName, bytes } of ipcUploads) {
+      const storageRef = ref(storage, `retirement-homes/${homeIdentifier}/ipc-data/${fileName}`);
+      const snapshot = await uploadBytes(storageRef, bytes, { contentType: 'application/csv' });
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const ipcDocRef = doc(db, 'retirement-homes', homeIdentifier, 'ipc-data', fileName);
+      await setDoc(ipcDocRef, {
+        fileName: fileName,
+        storageURL: downloadURL,
+        storagePath: storageRef.fullPath,
+        timestamp: new Date(),
+        retirementHome: retirementHome,
+        homeIdentifier: homeIdentifier
+      });
+      console.log(`✅ [STORAGE] IPC data file uploaded to Storage: ${fileName}`);
+    }
+
     console.log('🎉 [FIRESTORE] All data uploaded to Firestore and Storage successfully');
   } catch (error) {
     console.error('❌ [FIRESTORE/STORAGE] Error uploading to Firebase:', error);
@@ -181,11 +205,12 @@ export async function POST(request: NextRequest) {
     const retirementHome = formData.get('retirementHome') as string;
     const carePlanCount = parseInt(formData.get('carePlanCount') as string) || 0;
     const hydrationDataCount = parseInt(formData.get('hydrationDataCount') as string) || 0;
-
+    const ipcDataCount = parseInt(formData.get('ipcDataCount') as string) || 0;
     console.log('📊 [API] Request parameters:', {
       retirementHome,
       carePlanCount,
-      hydrationDataCount
+      hydrationDataCount,
+      ipcDataCount // can be 0
     });
 
     if (carePlanCount === 0 || hydrationDataCount === 0 || !retirementHome) {
@@ -213,24 +238,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Extract all IPC data files
+    const ipcDataFiles: File[] = [];
+    for (let i = 0; i < ipcDataCount; i++) {
+      const file = formData.get(`ipcData_${i}`) as File;
+      if (file) {
+        ipcDataFiles.push(file);
+        console.log(`📄 [API] Extracted IPC data file ${i}: ${file.name} (${file.size} bytes)`);
+      }
+    }
+
     console.log(`📁 [API] Total files extracted: ${carePlanFiles.length} care plans, ${hydrationDataFiles.length} hydration data files`);
 
     // Create retirement home-specific directories
     const homeDir = join(process.cwd(), 'data', retirementHome);
     const carePlansDir = join(homeDir, 'care-plans');
     const hydrationDataDir = join(homeDir, 'hydration-data');
+    const ipcDataDir = join(homeDir, 'ipc-data');
 
     console.log(`🏠 [API] Creating directories for retirement home: ${retirementHome}`);
     console.log(`📁 [API] Home directory: ${homeDir}`);
     console.log(`📄 [API] Care plans directory: ${carePlansDir}`);
     console.log(`💧 [API] Hydration data directory: ${hydrationDataDir}`);
+    console.log(`📄 [API] IPC data directory: ${ipcDataDir}`);
 
     await mkdir(carePlansDir, { recursive: true });
     await mkdir(hydrationDataDir, { recursive: true });
+    await mkdir(ipcDataDir, { recursive: true });
     console.log('✅ [API] Directories created successfully');
 
     // Save all uploaded files
-    console.log(`💾 [API] Saving ${carePlanFiles.length} care plan files and ${hydrationDataFiles.length} hydration data files`);
+    console.log(`💾 [API] Saving ${carePlanFiles.length} care plan files and ${hydrationDataFiles.length} hydration data files and ${ipcDataFiles.length} IPC data files`);
     
     // Save files locally and collect buffers for Firebase upload
     const carePlanUploads: { fileName: string; bytes: Uint8Array }[] = [];
@@ -251,6 +289,15 @@ export async function POST(request: NextRequest) {
       console.log(`✅ [API] Saved hydration data: ${file.name} to ${path}`);
     }
 
+    const ipcUploads: { fileName: string; bytes: Uint8Array }[] = [];
+    for (const file of ipcDataFiles) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const path = join(ipcDataDir, file.name);
+      await writeFile(path, Buffer.from(bytes));
+      ipcUploads.push({ fileName: file.name, bytes });
+      console.log(`✅ [API] Saved IPC data: ${file.name} to ${path}`);
+    }
+
     console.log('✅ [API] All files saved successfully');
 
     // Copy Python scripts to home directory
@@ -264,6 +311,8 @@ export async function POST(request: NextRequest) {
     console.log('✅ [API] Copied careplan.py');
     await copyFile(join(process.cwd(), 'python', 'process_dat_pdf.py'), join(scriptsDir, 'process_dat_pdf.py'));
     console.log('✅ [API] Copied process_dat_pdf.py');
+    await copyFile(join(process.cwd(), 'python', 'process_ipc_csv.py'), join(scriptsDir, 'process_ipc_csv.py'));
+    console.log('✅ [API] Copied process_ipc_csv.py');
     await copyFile(join(process.cwd(), 'python', 'generate_dashboard_data.py'), join(scriptsDir, 'generate_dashboard_data.py'));
     console.log('✅ [API] Copied generate_dashboard_data.py');
     console.log('✅ [API] All Python scripts copied successfully');
@@ -317,8 +366,23 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    // Step 3: Generate dashboard data
-    console.log('🐍 [PYTHON] Step 3: Generating dashboard data...');
+    // Step 3: Process IPC data
+    console.log('🐍 [PYTHON] Step 3: Processing IPC data...');
+    console.log(`🐍 [PYTHON] Running: cd "${homeDir}" && python3 scripts/process_ipc_csv.py`);
+    try {
+      const ipcResult = await execAsync(`cd "${homeDir}" && python3 scripts/process_ipc_csv.py`);
+      console.log('✅ [PYTHON] IPC data processing completed');
+      console.log('📊 [PYTHON] IPC data output:', ipcResult.stdout);
+      if (ipcResult.stderr) {
+        console.log('⚠️ [PYTHON] IPC data warnings:', ipcResult.stderr);
+      }
+    } catch (error) {
+      console.error('❌ [PYTHON] IPC data processing failed:', error);
+      throw error;
+    }
+
+    // Step 4: Generate dashboard data
+    console.log('🐍 [PYTHON] Step 4: Generating dashboard data...');
     console.log(`🐍 [PYTHON] Running: cd "${homeDir}" && python3 scripts/generate_dashboard_data.py`);
     try {
       const dashboardResult = await execAsync(`cd "${homeDir}" && python3 scripts/generate_dashboard_data.py`);
@@ -373,12 +437,13 @@ export async function POST(request: NextRequest) {
     // Upload PDFs (via provided buffers) and processed data to Firebase
     console.log('🔥 [API] Attempting to upload PDFs and processed data to Firebase...');
     try {
-      await uploadToFirebase(homeDir, retirementHome, carePlanUploads, hydrationUploads);
+      await uploadToFirebase(homeDir, retirementHome, carePlanUploads, hydrationUploads, ipcUploads);
       console.log('✅ [API] Firebase upload completed successfully');
     } catch (firestoreError) {
       console.error('❌ [API] Firestore upload failed:', firestoreError);
-      console.log('⚠️ [API] Continuing with local data despite Firestore upload failure');
-      // Don't throw the error - continue with the response
+      
+      // throw the error
+      throw firestoreError;
     }
 
     console.log('🎉 [API] File processing completed successfully!');
