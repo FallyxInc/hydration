@@ -34,6 +34,9 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   const [savingComments, setSavingComments] = useState<{[key: string]: boolean}>({});
   const [showFeedingTubePopup, setShowFeedingTubePopup] = useState<string | null>(null);
   const [dateColumns, setDateColumns] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [missedFilter, setMissedFilter] = useState<string | null>(null); // null = all, 'yes' = only missed, 'no' = only not missed
+  const [sortBy, setSortBy] = useState<'none' | 'goal-asc' | 'goal-desc' | 'avg-asc' | 'avg-desc'>('none');
 
   const loadSavedComments = () => {
     try {
@@ -208,8 +211,40 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       filtered = filtered.filter(resident => resident.unit === selectedUnit);
     }
     
+    // Filter by search query (resident name)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(resident => {
+        const cleanedName = cleanResidentName(resident.name).toLowerCase();
+        return cleanedName.includes(query);
+      });
+    }
+    
+    // Filter by missed 3 days
+    if (missedFilter !== null) {
+      filtered = filtered.filter(resident => resident.missed3Days === missedFilter);
+    }
+    
+    // Sort residents
+    if (sortBy !== 'none') {
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'goal-asc':
+            return (a.goal || 0) - (b.goal || 0);
+          case 'goal-desc':
+            return (b.goal || 0) - (a.goal || 0);
+          case 'avg-asc':
+            return (a.averageIntake || 0) - (b.averageIntake || 0);
+          case 'avg-desc':
+            return (b.averageIntake || 0) - (a.averageIntake || 0);
+          default:
+            return 0;
+        }
+      });
+    }
+    
     setFilteredResidents(filtered);
-  }, [residents, selectedUnit]);
+  }, [residents, selectedUnit, searchQuery, missedFilter, sortBy]);
 
   const handleCommentChange = (residentName: string, comment: string) => {
     setEditingComments(prev => ({
@@ -394,7 +429,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
   };
 
   const getStatusColor = (goal: number, value: number) => {
-    if (goal === 0) return 'text-gray-500';
+    if (goal === 0) return 'text-gray-500 dark:text-gray-400';
     return value >= goal ? 'text-green-600' : 'text-red-600';
   };
 
@@ -445,7 +480,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       {/* Combined Summary Stats and Filter Controls - Same Line */}
       <div className="flex space-x-6">
         {/* Summary Stats Island - Left Side */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 flex-1">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 flex-1 transition-colors duration-200">
           <div className="grid grid-cols-2 gap-6">
             {/* First Row */}
             <div className="flex items-center">
@@ -458,8 +493,8 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </div>
               <div className="ml-4">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500">Total Residents</dt>
-                  <dd className="text-xl font-bold text-gray-900">{residents.length}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Residents</dt>
+                  <dd className="text-xl font-bold text-gray-900 dark:text-gray-100">{residents.length}</dd>
                 </dl>
               </div>
             </div>
@@ -474,8 +509,8 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </div>
               <div className="ml-4">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500">Goal Met Today</dt>
-                  <dd className="text-xl font-bold text-gray-900">{goalMetCount}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Goal Met Today</dt>
+                  <dd className="text-xl font-bold text-gray-900 dark:text-gray-100">{goalMetCount}</dd>
                 </dl>
               </div>
             </div>
@@ -491,8 +526,8 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </div>
               <div className="ml-4">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500">Missed 3 Days</dt>
-                  <dd className="text-xl font-bold text-gray-900">{missed3DaysCount}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Missed 3 Days</dt>
+                  <dd className="text-xl font-bold text-gray-900 dark:text-gray-100">{missed3DaysCount}</dd>
                 </dl>
               </div>
             </div>
@@ -507,7 +542,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </div>
               <div className="ml-4">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500">Goal Met %</dt>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Goal Met %</dt>
                   <dd className={`text-xl font-bold ${
                     parseFloat(goalMetPercentage) < 20 ? 'text-red-500' :
                     parseFloat(goalMetPercentage) < 40 ? 'text-yellow-500' :
@@ -522,14 +557,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         </div>
 
         {/* Filter Controls Island - Right Side */}
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 relative">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 relative transition-colors duration-200">
           <div className="space-y-4">
             <div className="text-center w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Unit Filter</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit Filter</label>
               <select
                 value={selectedUnit}
                 onChange={(e) => setSelectedUnit(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center w-full"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 mx-auto block text-center w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="all" className="text-center">All Units</option>
                 {getUniqueUnits().map(unit => (
@@ -538,11 +573,11 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </select>
             </div>
             <div className="text-center w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Range</label>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(parseInt(e.target.value))}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mx-auto block text-center w-full mb-2"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 mx-auto block text-center w-full mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value={3}>Past 3 Days</option>
                 <option value={4}>Past 4 Days</option>
@@ -552,12 +587,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               </select>
             </div>
             <div
-              className="mt-2 text-sm text-cyan-600 font-medium text-center sticky bottom-0 bg-white py-1 z-10"
-              style={{ 
-                background: 'white',
-                left: 0,
-                right: 0
-              }}
+              className="mt-2 text-sm text-cyan-600 dark:text-cyan-400 font-medium text-center sticky bottom-0 bg-white dark:bg-gray-800 py-1 z-10 transition-colors duration-200"
             >
               Showing {filteredResidents.length} of {residents.length} residents
             </div>
@@ -566,26 +596,48 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
       </div>
 
       {/* Residents Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-200">
         <div className="px-6 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-xl leading-6 font-bold text-gray-900">Resident Hydration Data</h3>
-              <p className="mt-2 text-sm text-gray-600">
+              <h3 className="text-xl leading-6 font-bold text-gray-900 dark:text-gray-100">Resident Hydration Data</h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                 Detailed view of all residents&apos; hydration goals and consumption
               </p>
             </div>
             
             {/* Action buttons for home managers */}
             {userRole === 'home_manager' && (
-              <div className="flex space-x-4">
+              <div className="flex space-x-4 items-center">
+                {/* Search Filter */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Search residents..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-4 h-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                      title="Clear search"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
                 {/* Date Range Selector */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="px-6  h-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm"
+                    className="px-6  h-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                 </div>
 
@@ -593,7 +645,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                 <button
                   onClick={handleExportCSV}
                   disabled={exporting || residents.length === 0}
-                  className=" bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
+                  className="bg-cyan-500 dark:bg-cyan-600 hover:bg-cyan-600 dark:hover:bg-cyan-700 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   {exporting ? (
                     <>
@@ -618,43 +670,118 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: '200px', width: 'auto' }}>
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider" style={{ maxWidth: '200px', width: 'auto' }}>
                   Resident Name
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Goal (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('avg-')) {
+                      setSortBy('goal-asc');
+                    } else if (sortBy === 'goal-asc') {
+                      setSortBy('goal-desc');
+                    } else if (sortBy === 'goal-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('goal-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Goal (mL)</span>
+                    {sortBy === 'goal-asc' && <span className="text-cyan-600 dark:text-cyan-400">↑</span>}
+                    {sortBy === 'goal-desc' && <span className="text-cyan-600 dark:text-cyan-400">↓</span>}
+                  </div>
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Average (mL)
+                <th 
+                  className="px-3 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors select-none"
+                  onClick={() => {
+                    // Cycle through: none -> asc -> desc -> none
+                    if (sortBy === 'none' || sortBy.startsWith('goal-')) {
+                      setSortBy('avg-asc');
+                    } else if (sortBy === 'avg-asc') {
+                      setSortBy('avg-desc');
+                    } else if (sortBy === 'avg-desc') {
+                      setSortBy('none');
+                    } else {
+                      setSortBy('avg-asc');
+                    }
+                  }}
+                  title="Click to sort: Lowest → Highest → Reset"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Average (mL)</span>
+                    {sortBy === 'avg-asc' && <span className="text-cyan-600 dark:text-cyan-400">↑</span>}
+                    {sortBy === 'avg-desc' && <span className="text-cyan-600 dark:text-cyan-400">↓</span>}
+                  </div>
                 </th>
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Status
                 </th>
                 {filteredDateColumns.map((date) => (
-                  <th key={date} className="px-3 py-4 text-left text-xs font-semibold text-cyan-600 uppercase tracking-wider">
+                  <th key={date} className="px-3 py-4 text-left text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">
                     {formatDateWithoutYear(date)}
                   </th>
                 ))}
-                <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Missed 3 Days
+                <th 
+                  className={`px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors select-none ${
+                    missedFilter !== null ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30' : 'text-gray-500 dark:text-gray-300'
+                  }`}
+                  onClick={() => {
+                    // Cycle through: null -> 'yes' -> 'no' -> null
+                    if (missedFilter === null) {
+                      setMissedFilter('yes');
+                    } else if (missedFilter === 'yes') {
+                      setMissedFilter('no');
+                    } else {
+                      setMissedFilter(null);
+                    }
+                  }}
+                  title="Click to filter: All → Missed → Not Missed → All"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Missed 3 Days</span>
+                    {missedFilter !== null && (
+                      <span className="text-xs font-normal">
+                        ({missedFilter === 'yes' ? 'Missed' : 'Not Missed'})
+                      </span>
+                    )}
+                    <svg 
+                      className={`w-3 h-3 ${missedFilter !== null ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400 dark:text-gray-500'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                  </div>
                 </th>
-                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ minWidth: '150px', maxWidth: '200px' }}>
+                 <th className="px-3 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider" style={{ minWidth: '150px', maxWidth: '200px' }}>
                    Comments
                  </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredResidents.map((resident, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-              <td className="px-3 py-4 text-sm font-medium text-gray-900" style={{ maxWidth: '200px', width: 'auto' }}>
+                <tr 
+                  key={index} 
+                  className={`transition-colors duration-200 ${
+                    resident.missed3Days === 'yes' 
+                      ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30' 
+                      : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+              <td className="px-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-100" style={{ maxWidth: '200px', width: 'auto' }}>
                 <div className="flex items-start space-x-2">
                   <div className="break-words min-w-0" title={cleanResidentName(resident.name)}>
-                    <div className="font-medium text-gray-900 break-words min-w-0">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 break-words min-w-0">
                       {cleanResidentName(resident.name)}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center space-x-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center space-x-2">
                       <span>{resident.unit || 'Unknown'}</span>
                       {resident.hasFeedingTube && (
                         <div className="relative inline-block">
@@ -675,17 +802,17 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                   </div>
                 </div>
               </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {resident.goal}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {resident.averageIntake || 0}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap">
                     <div className="flex flex-col space-y-2">
                       {/* Progress Bar */}
                       <div className="w-full">
-                        <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                           <div 
                             className="h-3 rounded-full bg-gradient-to-r from-cyan-300 to-cyan-500 transition-all duration-300"
                             style={{ 
@@ -696,21 +823,21 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                         </div>
                       </div>
                       {/* Percentage Text */}
-                      <div className="text-xs font-medium text-gray-600 text-center">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-300 text-center">
                         {resident.goal === 0 ? 'N/A' : `${Math.min(Math.round((getMostRecentDateValue(resident) / resident.goal) * 100), 100)}%`}
                       </div>
                     </div>
                   </td>
                   {filteredDateColumns.map((date) => (
-                    <td key={date} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td key={date} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {resident.dateData?.[date] || 0}
                     </td>
                   ))}
                   <td className="px-3 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                       resident.missed3Days === 'yes' 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' 
+                        : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                     }`}>
                       {resident.missed3Days === 'yes' ? 'Yes' : 'No'}
                     </span>
@@ -720,7 +847,7 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                       {/* Display saved comment or editing area */}
                       {residentComments[resident.name] && !editingComments[resident.name] ? (
                         <div className="space-y-1">
-                           <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group break-words overflow-hidden">
+                           <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 min-h-[40px] relative group break-words overflow-hidden">
                              <div className="max-h-12 overflow-hidden" style={{
                                display: '-webkit-box',
                                WebkitLineClamp: 3,
@@ -729,14 +856,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
                               <button
                                 onClick={() => handleEditComment(resident.name)}
-                                className="text-cyan-600 hover:text-cyan-700 text-xs"
+                                className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 text-xs"
                                 title="Edit comment"
                               >
                                 ✏️
                               </button>
                               <button
                                 onClick={() => handleDeleteComment(resident.name)}
-                                className="text-red-500 hover:text-red-600 text-xs"
+                                className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs"
                                 title="Delete comment"
                               >
                                 🗑️
@@ -750,14 +877,14 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
                              value={editingComments[resident.name] || ''}
                              onChange={(e) => handleCommentChange(resident.name, e.target.value)}
                              placeholder="Add comment..."
-                             className="w-full px-2 py-1 pr-8 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 break-words"
+                             className="w-full px-2 py-1 pr-8 border border-gray-300 dark:border-gray-600 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 break-words bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                              rows={2}
                              maxLength={200}
                            />
                           <button
                             onClick={() => handleSaveComment(resident.name)}
                             disabled={savingComments[resident.name] || !editingComments[resident.name]?.trim()}
-                            className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-300 text-white text-xs rounded flex items-center justify-center transition-colors"
+                            className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 dark:bg-cyan-600 hover:bg-cyan-600 dark:hover:bg-cyan-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white text-xs rounded flex items-center justify-center transition-colors"
                             title="Save comment"
                           >
                             {savingComments[resident.name] ? '⏳' : '✓'}
