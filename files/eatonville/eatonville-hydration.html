@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eatonville Hydration Tracking Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #6A327C 0%, #70D9C9 100%);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(106, 50, 124, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(106, 50, 124, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .login-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6A327C 0%, #70D9C9 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 24px;
+        }
+
+        .login-title {
+            color: #6A327C;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            color: #4a5568;
+            margin-bottom: 32px;
+        }
+
+        .access-code-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(106, 50, 124, 0.2);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .access-code-input:focus {
+            outline: none;
+            border-color: #6A327C;
+            background: white;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6A327C 0%, #70D9C9 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(106, 50, 124, 0.3);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            color: #e53e3e;
+            font-size: 0.9rem;
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(229, 62, 62, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(229, 62, 62, 0.2);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(106, 50, 124, 0.2);
+            margin-bottom: 24px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .header h1 {
+            color: #6A327C;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #4a5568;
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(106, 50, 124, 0.15);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #4a5568;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .total-residents { color: #6A327C; }
+        .goal-met { color: #70D9C9; }
+        .missed-3-days { color: #f59e0b; }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(106, 50, 124, 0.15);
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px 16px;
+            border: 2px solid rgba(106, 50, 124, 0.2);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #6A327C;
+            background: white;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid rgba(106, 50, 124, 0.2);
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            color: #6A327C;
+        }
+
+        .filter-btn:hover {
+            border-color: #6A327C;
+            background: rgba(106, 50, 124, 0.1);
+        }
+
+        .filter-btn.active {
+            background: #6A327C;
+            color: white;
+            border-color: #6A327C;
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(106, 50, 124, 0.15);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .table-header {
+            background: rgba(112, 217, 201, 0.1);
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(106, 50, 124, 0.1);
+        }
+
+        .table-header h2 {
+            color: #6A327C;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(112, 217, 201, 0.15);
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #6A327C;
+            border-bottom: 1px solid rgba(106, 50, 124, 0.1);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid rgba(106, 50, 124, 0.05);
+            color: #4a5568;
+        }
+
+        tr:hover {
+            background: rgba(112, 217, 201, 0.05);
+        }
+
+        .resident-name {
+            font-weight: 600;
+            color: #6A327C;
+        }
+
+        .goal {
+            text-align: center;
+            font-weight: 600;
+            color: #6A327C;
+        }
+
+        .yesterday {
+            text-align: center;
+            color: #4a5568;
+        }
+
+        .status {
+            text-align: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status.met {
+            background: rgba(112, 217, 201, 0.2);
+            color: #2d5a4e;
+        }
+
+        .status.missed {
+            background: rgba(106, 50, 124, 0.1);
+            color: #6A327C;
+        }
+
+        .missed-3-days {
+            text-align: center;
+        }
+
+        .missed-3-days.yes {
+            color: #6A327C;
+            font-weight: 600;
+        }
+
+        .missed-3-days.no {
+            color: #70D9C9;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(106, 50, 124, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 6px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #70D9C9 0%, #6A327C 100%);
+            transition: width 0.3s ease;
+            border-radius: 6px;
+        }
+
+        .progress-fill.under {
+            background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 24px;
+            color: #64748b;
+        }
+
+        .no-data h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+        }
+
+        .no-data p {
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                min-width: auto;
+            }
+            
+            table {
+                font-size: 0.9rem;
+            }
+            
+            th, td {
+                padding: 12px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💧 Eatonville Hydration Tracking Dashboard</h1>
+            <p>Real-time monitoring of resident hydration goals and intake</p>
+        </div>
+
+        <div class="login-container" id="loginContainer">
+            <div class="login-box">
+                <div class="login-logo">💧</div>
+                <h2 class="login-title">Eatonville Hydration Dashboard</h2>
+                <p class="login-subtitle">Enter access code to continue</p>
+                <input type="password" id="accessCodeInput" class="access-code-input" placeholder="Enter access code">
+                <button id="loginBtn" class="login-btn">Access Dashboard</button>
+                <div id="errorMessage" class="error-message hidden"></div>
+            </div>
+        </div>
+
+        <div class="main-content hidden" id="mainContent">
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+
+            <div class="controls">
+                <input type="text" id="searchInput" class="search-box" placeholder="Search residents by name...">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">All Residents</button>
+                    <button class="filter-btn" data-filter="met">Goal Met</button>
+                    <button class="filter-btn" data-filter="missed">Goal Missed</button>
+                    <button class="filter-btn" data-filter="missed3">Missed 3 Days</button>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn" data-floor="all">All Floors</button>
+                    <button class="filter-btn" data-floor="2">Floor 2</button>
+                    <button class="filter-btn" data-floor="3">Floor 3</button>
+                    <button class="filter-btn" data-floor="4">Floor 4</button>
+                    <button class="filter-btn" data-floor="5">Floor 5</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h2>Resident Hydration Status</h2>
+            </div>
+            <div id="tableContent">
+                <!-- Table will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load dynamic data from CSV -->
+    <script src="eatonville_dashboard_data.js"></script>
+    <script>
+
+        let filteredData = [...hydrationData];
+        let currentFilter = 'all';
+        let currentFloor = 'all';
+
+        // Valid access codes
+        const validAccessCodes = ['bal-13!*', 'al_227ky-', 'mar-558!'];
+
+        // Authentication functions
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        }
+
+        function hideError() {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.classList.add('hidden');
+        }
+
+        function authenticate() {
+            const accessCode = document.getElementById('accessCodeInput').value;
+            
+            if (validAccessCodes.includes(accessCode)) {
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                hideError();
+                // Initialize dashboard after successful login
+                initializeDashboard();
+            } else {
+                showError('Invalid access code. Please try again.');
+                document.getElementById('accessCodeInput').value = '';
+            }
+        }
+
+        // Calculate statistics
+        function calculateStats(data) {
+            const totalResidents = data.length;
+            const goalMet = data.filter(r => r.goal && r.yesterday && parseFloat(r.yesterday) >= parseFloat(r.goal)).length;
+            const missed3Days = data.filter(r => r.missed3Days === 'yes').length;
+
+            return { totalResidents, goalMet, missed3Days };
+        }
+
+        // Update statistics display
+        function updateStats() {
+            const stats = calculateStats(filteredData);
+            const statsGrid = document.getElementById('statsGrid');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number total-residents">${stats.totalResidents}</div>
+                    <div class="stat-label">Total Residents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number goal-met">${stats.goalMet}</div>
+                    <div class="stat-label">Goal Met Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number missed-3-days">${stats.missed3Days}</div>
+                    <div class="stat-label">Missed 3 Days in Row</div>
+                </div>
+            `;
+        }
+
+        // Render table
+        function renderTable() {
+            const tableContent = document.getElementById('tableContent');
+            
+            if (filteredData.length === 0) {
+                tableContent.innerHTML = `
+                    <div class="no-data">
+                        <h3>No residents found</h3>
+                        <p>Try adjusting your search or filter criteria</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Resident Name</th>
+                            <th>Goal (mL)</th>
+                            <th>Oct 14th</th>
+                            <th>Oct 15th</th>
+                            <th>Oct 16th</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Missed 3 Days</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredData.map(resident => {
+                            const goal = parseFloat(resident.goal) || 0;
+                            const day14 = parseFloat(resident.day14) || 0;
+                            const day15 = parseFloat(resident.day15) || 0;
+                            const day16 = parseFloat(resident.day16) || 0;
+                            const yesterday = parseFloat(resident.yesterday) || 0;
+                            const metGoal = goal > 0 && yesterday >= goal;
+                            const progressPercent = goal > 0 ? Math.min((yesterday / goal) * 100, 100) : 0;
+                            
+                            return `
+                                <tr>
+                                    <td class="resident-name">${resident.name}</td>
+                                    <td class="goal">${goal.toLocaleString()}</td>
+                                    <td class="yesterday">${day14.toLocaleString()}</td>
+                                    <td class="yesterday">${day15.toLocaleString()}</td>
+                                    <td class="yesterday">${day16.toLocaleString()}</td>
+                                    <td>
+                                        <span class="status ${metGoal ? 'met' : 'missed'}">
+                                            ${metGoal ? 'Met Goal' : 'Missed Goal'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        ${goal > 0 ? `
+                                            <div class="progress-bar">
+                                                <div class="progress-fill ${metGoal ? '' : 'under'}" 
+                                                     style="width: ${progressPercent}%"></div>
+                                            </div>
+                                        ` : 'No goal set'}
+                                    </td>
+                                    <td class="missed-3-days ${resident.missed3Days}">
+                                        ${resident.missed3Days === 'yes' ? 'Yes' : 'No'}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            tableContent.innerHTML = tableHTML;
+        }
+
+        // Extract floor from source file
+        function getFloorFromSource(source) {
+            if (source.includes('2.pdf')) return '2';
+            if (source.includes('3.pdf')) return '3';
+            if (source.includes('4.pdf')) return '4';
+            if (source.includes('5.pdf')) return '5';
+            return 'unknown';
+        }
+
+        // Filter data
+        function filterData(filter, floor = null) {
+            if (filter) currentFilter = filter;
+            if (floor) currentFloor = floor;
+            
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            filteredData = hydrationData.filter(resident => {
+                const matchesSearch = resident.name.toLowerCase().includes(searchTerm);
+                let matchesFilter = true;
+                let matchesFloor = true;
+                
+                // Apply status filter
+                if (currentFilter === 'met') {
+                    const goal = parseFloat(resident.goal) || 0;
+                    const yesterday = parseFloat(resident.yesterday) || 0;
+                    matchesFilter = goal > 0 && yesterday >= goal;
+                } else if (currentFilter === 'missed') {
+                    const goal = parseFloat(resident.goal) || 0;
+                    const yesterday = parseFloat(resident.yesterday) || 0;
+                    matchesFilter = goal > 0 && yesterday < goal;
+                } else if (currentFilter === 'missed3') {
+                    matchesFilter = resident.missed3Days === 'yes';
+                }
+                
+                // Apply floor filter
+                if (currentFloor !== 'all') {
+                    const residentFloor = getFloorFromSource(resident.source);
+                    matchesFloor = residentFloor === currentFloor;
+                }
+                
+                return matchesSearch && matchesFilter && matchesFloor;
+            });
+            
+            updateStats();
+            renderTable();
+            updateFilterButtons();
+            updateFloorButtons();
+        }
+
+        // Update filter button states
+        function updateFilterButtons() {
+            document.querySelectorAll('[data-filter]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === currentFilter);
+            });
+        }
+
+        // Update floor button states
+        function updateFloorButtons() {
+            document.querySelectorAll('[data-floor]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.floor === currentFloor);
+            });
+        }
+
+        // Initialize dashboard after login
+        function initializeDashboard() {
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', function() {
+                filterData();
+            });
+            
+            // Filter buttons
+            document.querySelectorAll('[data-filter]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterData(this.dataset.filter);
+                });
+            });
+            
+            // Floor buttons
+            document.querySelectorAll('[data-floor]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterData(null, this.dataset.floor);
+                });
+            });
+            
+            // Initial render
+            updateStats();
+            renderTable();
+            updateFilterButtons();
+            updateFloorButtons();
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Authentication event listeners
+            document.getElementById('loginBtn').addEventListener('click', authenticate);
+            document.getElementById('accessCodeInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    authenticate();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
