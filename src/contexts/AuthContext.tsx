@@ -1,4 +1,5 @@
 'use client';
+// AuthContext provides authentication state and helpers.
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
