@@ -336,12 +336,15 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl`} style={{ backgroundColor: `${color}20` }}>
-            {icon}
-          </div>
+          {icon && (
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl`} style={{ backgroundColor: `${color}20` }}>
+              {icon}
+            </div>
+          )}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {title} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">— {description}</span>
+            </h3>
           </div>
         </div>
         <div className={`text-3xl font-bold`} style={{ color }}>
@@ -385,7 +388,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           title="High Risk Residents"
           count={trendAnalysis?.highRisk.length || 0}
           residents={trendAnalysis?.highRisk || []}
-          icon="⚠️"
+          icon=""
           color="#ef4444"
           description="Residents requiring immediate attention"
         />
@@ -395,7 +398,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           residents={[...(trendAnalysis?.decliningTrend || []), ...(trendAnalysis?.consistentlyLow || [])].filter((resident, index, self) =>
             index === self.findIndex(r => r.name === resident.name)
           )}
-          icon="📉"
+          icon=""
           color="#f59e0b"
           description="Declining consumption or consistently below goal"
         />
@@ -403,7 +406,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
           title="Improving Trend"
           count={trendAnalysis?.improvingTrend.length || 0}
           residents={trendAnalysis?.improvingTrend || []}
-          icon="📈"
+          icon=""
           color="#10b981"
           description="Recent consumption increasing"
         />
@@ -421,7 +424,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             title="Long-Term Improving"
             count={trendAnalysis?.longTermImproving.length || 0}
             residents={trendAnalysis?.longTermImproving || []}
-            icon="🌟"
+            icon=""
             color="#10b981"
             description="2+ consecutive weeks improving"
           />
@@ -429,7 +432,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             title="Sustained Improvement"
             count={trendAnalysis?.sustainedImprovement.length || 0}
             residents={trendAnalysis?.sustainedImprovement || []}
-            icon="✨"
+            icon=""
             color="#10b981"
             description="2+ weeks above goal, improving"
           />
@@ -437,7 +440,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             title="Week-over-Week"
             count={trendAnalysis?.weekOverWeekImproving.length || 0}
             residents={trendAnalysis?.weekOverWeekImproving || []}
-            icon="📅"
+            icon=""
             color="#10b981"
             description="Improved this week vs last"
           />
@@ -445,7 +448,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
             title="Month-over-Month"
             count={trendAnalysis?.monthOverMonthImproving.length || 0}
             residents={trendAnalysis?.monthOverMonthImproving || []}
-            icon="📆"
+            icon=""
             color="#10b981"
             description="Improved this month vs last"
           />
@@ -458,8 +461,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
         {trendAnalysis && trendAnalysis.highRisk.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-red-200 dark:border-red-800 transition-colors duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-red-600 dark:text-red-400 flex items-center">
-                <span className="mr-2">⚠️</span>
+              <h3 className="text-xl font-bold text-red-600 dark:text-red-400">
                 High Risk Residents - Action Required
               </h3>
               {trendAnalysis.highRisk.length > 3 && (
@@ -481,16 +483,16 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                       <div>Goal: {resident.goal}mL | Current Avg: {resident.averageIntake || 0}mL</div>
                       <div>Unit: {resident.unit || 'Unknown'}</div>
                       {resident.missed3Days === 'yes' && (
-                        <div className="text-red-600 font-medium">⚠️ Missed 3 consecutive days</div>
+                        <div className="text-red-600 font-medium">Missed 3 consecutive days</div>
                       )}
                       {trendAnalysis.decliningTrend.includes(resident) && (
-                        <div className="text-orange-600 font-medium">📉 Declining consumption trend</div>
+                        <div className="text-orange-600 font-medium">Declining consumption trend</div>
                       )}
                       {longTermDecline && (
-                        <div className="text-red-600 font-medium">📉 Long-term decline: {longTermDecline.declineWeeks} weeks, avg -{longTermDecline.avgDecline}mL/week</div>
+                        <div className="text-red-600 font-medium">Long-term decline: {longTermDecline.declineWeeks} weeks, avg -{longTermDecline.avgDecline}mL/week</div>
                       )}
                       {trendAnalysis.consistentlyLow.includes(resident) && (
-                        <div className="text-orange-600 font-medium">📊 Consistently below goal</div>
+                        <div className="text-orange-600 font-medium">Consistently below goal</div>
                       )}
                     </div>
                   </div>
@@ -504,8 +506,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
         {trendAnalysis && trendAnalysis.improvingTrend.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-green-200 dark:border-green-800 transition-colors duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-green-600 dark:text-green-400 flex items-center">
-                <span className="mr-2">📈</span>
+              <h3 className="text-xl font-bold text-green-600 dark:text-green-400">
                 Improving Residents - Positive Trends
               </h3>
               {trendAnalysis.improvingTrend.length > 3 && (
@@ -524,7 +525,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                   <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                     <div>Goal: {resident.goal}mL | Current Avg: {resident.averageIntake || 0}mL</div>
                     <div>Unit: {resident.unit || 'Unknown'}</div>
-                    <div className="text-green-600 font-medium">✅ Showing improvement and meeting goals</div>
+                    <div className="text-green-600 font-medium">Showing improvement and meeting goals</div>
                   </div>
                 </div>
               ))}
@@ -536,8 +537,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
       {/* Long-Term Improvement Details */}
       {(trendAnalysis && (trendAnalysis.longTermImproving.length > 0 || trendAnalysis.sustainedImprovement.length > 0 || trendAnalysis.weekOverWeekImproving.length > 0 || trendAnalysis.monthOverMonthImproving.length > 0)) && (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-green-200 dark:border-green-800 transition-colors duration-200">
-          <h3 className="text-xl font-bold text-green-600 dark:text-green-400 mb-4 flex items-center">
-            <span className="mr-2">🌟</span>
+          <h3 className="text-xl font-bold text-green-600 dark:text-green-400 mb-4">
             Genuine Long-Term Improvement - Sustained Progress
           </h3>
           
@@ -552,7 +552,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                     <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
-                        ✨ {resident.improvementWeeks} consecutive weeks improving | Avg +{resident.avgImprovement}mL/week
+                        {resident.improvementWeeks} consecutive weeks improving | Avg +{resident.avgImprovement}mL/week
                       </div>
                     </div>
                   </div>
@@ -572,7 +572,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                     <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
-                        ✅ {resident.weeksAboveGoal} weeks above goal | Improvement rate: +{resident.improvementRate}mL
+                        {resident.weeksAboveGoal} weeks above goal | Improvement rate: +{resident.improvementRate}mL
                       </div>
                     </div>
                   </div>
@@ -592,7 +592,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                     <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
-                        📈 Improved by +{resident.weeklyChange}mL this week vs last week
+                        Improved by +{resident.weeklyChange}mL this week vs last week
                       </div>
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export default function Analytics({ userRole, retirementHome }: AnalyticsProps) 
                     <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mt-1">
                       <div>Goal: {resident.goal}mL | Avg: {resident.averageIntake || 0}mL</div>
                       <div className="text-green-600 font-medium">
-                        📆 Improved by +{resident.monthlyChange}mL this month vs last month
+                        Improved by +{resident.monthlyChange}mL this month vs last month
                       </div>
                     </div>
                   </div>
