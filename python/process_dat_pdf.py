@@ -17,11 +17,34 @@ try:
 except Exception:
     PYPDF2_AVAILABLE = False
 
+def _txt_path_for(pdf_path: str) -> str:
+    """Convert PDF path to corresponding .txt path."""
+    base, _ = os.path.splitext(pdf_path)
+    return base + ".txt"
+
 def read_pdf_text(path: str) -> str:
+    """Return concatenated text of a PDF and write it to a .txt file."""
     if PYPDF2_AVAILABLE:
         try:
             reader = PdfReader(path)
-            return "\n".join([(p.extract_text() or "") for p in reader.pages])
+            page_texts = []
+            for page in reader.pages:
+                try:
+                    page_texts.append(page.extract_text() or "")
+                except Exception:
+                    page_texts.append("")
+            text = "\n\x0c\n".join(page_texts)  # \x0c = form feed
+            
+            # Write to .txt file
+            txt_path = _txt_path_for(path)
+            try:
+                print(f"Writing text to {txt_path}")
+                with open(txt_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(text)
+            except Exception as e:
+                print(f"Warning: Failed to write text to '{txt_path}': {e}")
+            
+            return "\n".join(page_texts)
         except Exception:
             pass
     raise RuntimeError("Please install PyPDF2 to parse PDFs.")
@@ -86,29 +109,29 @@ def extract_resident_name(text: str) -> Optional[str]:
     return None
 
 def extract_total_by_day(text: str) -> List[float]:
-    """Extract the three 'Total By Day' values."""
+    """Extract all 'Total By Day' values."""
     totals: List[float] = []
     
     # Pattern 1: Concatenated format like "Total By Day2200.02250.01275.0" or "Total By Day1675.01600.0950.0"
-    m = re.search(r"Total\s*By\s*Day(\d{3,4})\.0(\d{3,4})\.0(\d{3,4})\.0", text, flags=re.IGNORECASE)
+    m = re.search(r"Total\s*By\s*Day((?:\d{3,4}\.0)+)", text, flags=re.IGNORECASE)
     if m:
         try:
-            day1 = float(m.group(1) + ".0")  # "1675.0" or "2200.0"
-            day2 = float(m.group(2) + ".0")  # "1600.0" or "2250.0" 
-            day3 = float(m.group(3) + ".0")  # "950.0" or "1275.0"
-            totals = [day1, day2, day3]
+            # Extract all values like "1675.0", "1600.0", etc.
+            values = re.findall(r"(\d{3,4})\.0", m.group(1))
+            totals = [float(v + ".0") for v in values]
         except ValueError:
             pass
     
     # Pattern 2: Space-separated format like "Total By Day 1775.0 1850.0 1750.0" or "0.0 0.0 0.0"
+    # Also handles cases where last number is followed by text like "750.0Resident Name:"
     if not totals:
-        m = re.search(r"Total\s*By\s*Day\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+        # Match "Total By Day" followed by numbers until we hit text like "Resident Name:"
+        m = re.search(r"Total\s*By\s*Day\s+([\d\s\.]+?)(?=Resident\s*Name:|$)", text, flags=re.IGNORECASE)
         if m:
             try:
-                day1 = float(m.group(1))
-                day2 = float(m.group(2))
-                day3 = float(m.group(3))
-                totals = [day1, day2, day3]
+                # Extract all numbers from the matched section
+                numbers = re.findall(r"(\d+(?:\.\d+)?)", m.group(1))
+                totals = [float(x) for x in numbers]
             except ValueError:
                 pass
     
@@ -117,13 +140,17 @@ def extract_total_by_day(text: str) -> List[float]:
         lines = text.splitlines()
         for line in lines:
             if "Total By Day" in line:
-                # Extract all numbers after "Total By Day"
-                numbers = re.findall(r"(\d{3,}(?:\.\d+)?)", line)
-                if len(numbers) >= 3:
-                    try:
-                        totals = [float(x.replace(",", "")) for x in numbers[:3]]
-                    except ValueError:
-                        pass
+                # Extract all numbers after "Total By Day" until we hit text
+                # Match everything after "Total By Day" until "Resident Name:" or end of line
+                m = re.search(r"Total\s*By\s*Day\s+([\d\s\.]+?)(?=Resident\s*Name:|$)", line, flags=re.IGNORECASE)
+                if m:
+                    # Extract all numbers (including small ones like 0.0)
+                    numbers = re.findall(r"(\d+(?:\.\d+)?)", m.group(1))
+                    if len(numbers) >= 1:
+                        try:
+                            totals = [float(x.replace(",", "")) for x in numbers]
+                        except ValueError:
+                            pass
                 break
     
     return totals
@@ -141,10 +168,10 @@ def extract_start_date(text: str) -> Optional[datetime]:
             pass
     return None
 
-def calculate_date_columns(start_date: datetime) -> List[str]:
-    """Calculate the three date column names based on start date."""
+def calculate_date_columns(start_date: datetime, num_days: int = 3) -> List[str]:
+    """Calculate date column names based on start date and number of days."""
     dates = []
-    for i in range(3):
+    for i in range(num_days):
         date = start_date + timedelta(days=i)
         dates.append(date.strftime("%m/%d/%Y"))
     return dates
@@ -377,10 +404,12 @@ def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = 
         default_start_date = datetime.now() - timedelta(days=2)
         print(f"  Warning: No start dates found in PDF, using default: {default_start_date.strftime('%m/%d/%Y')}")
     
-    # Second pass: process all pages
+    # Second pass: process all pages and collect text for writing
     reader = PdfReader(pdf_path)
+    all_page_texts = []
     for page_num, page in enumerate(reader.pages):
-        page_text = page.extract_text()
+        page_text = page.extract_text() or ""
+        all_page_texts.append(page_text)
         res_name = extract_resident_name(page_text)
         totals = extract_total_by_day(page_text)
         start_date = extract_start_date(page_text)
@@ -393,14 +422,9 @@ def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = 
             start_date = default_start_date
             print(f"  Warning: No start date found for {res_name} on page {page_num + 1}, using default: {start_date.strftime('%m/%d/%Y')}")
 
-        # Calculate the three date columns based on start date
-        date_columns = calculate_date_columns(start_date)
+        # Calculate date columns based on number of extracted totals
+        date_columns = calculate_date_columns(start_date, len(totals))
         all_date_columns.update(date_columns)
-        
-        # Store individual day values
-        day1_value = totals[0] if len(totals) > 0 else 0
-        day2_value = totals[1] if len(totals) > 1 else 0
-        day3_value = totals[2] if len(totals) > 2 else 0
         
         idx = find_matching_resident(res_name, name_to_idx)
         if idx is None:
@@ -409,25 +433,19 @@ def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = 
         
         if is_extra:
             # This is extra hydration - ADD to existing values for each date
+            extra_details = []
             try:
-                existing_day1 = float(rows[idx].get(date_columns[0], "") or 0)
-                existing_day2 = float(rows[idx].get(date_columns[1], "") or 0)
-                existing_day3 = float(rows[idx].get(date_columns[2], "") or 0)
+                for date_col, day_value in zip(date_columns, totals):
+                    existing_value = float(rows[idx].get(date_col, "") or 0)
+                    new_value = existing_value + day_value
+                    rows[idx][date_col] = f"{new_value}"
+                    extra_details.append(f"{date_col}: {day_value} + {existing_value} = {new_value}")
                 
-                new_day1 = existing_day1 + day1_value
-                new_day2 = existing_day2 + day2_value
-                new_day3 = existing_day3 + day3_value
-                
-                print(f"Processing EXTRA {res_name}: {totals} ({date_columns[0]}: {day1_value} + {existing_day1} = {new_day1}, {date_columns[1]}: {day2_value} + {existing_day2} = {new_day2}, {date_columns[2]}: {day3_value} + {existing_day3} = {new_day3})")
-                
-                rows[idx][date_columns[0]] = f"{new_day1}"
-                rows[idx][date_columns[1]] = f"{new_day2}"
-                rows[idx][date_columns[2]] = f"{new_day3}"
+                print(f"Processing EXTRA {res_name}: {totals} ({', '.join(extra_details)})")
             except ValueError as e:
                 print(f"  Warning: Could not parse existing values for {res_name}, setting to new values: {e}")
-                rows[idx][date_columns[0]] = f"{day1_value}"
-                rows[idx][date_columns[1]] = f"{day2_value}"
-                rows[idx][date_columns[2]] = f"{day3_value}"
+                for date_col, day_value in zip(date_columns, totals):
+                    rows[idx][date_col] = f"{day_value}"
         else:
             # Regular hydration - set all values
             print(f"Processing {res_name}: {totals} (dates: {date_columns})")
@@ -436,9 +454,17 @@ def process_dat_pdf(rows: List[Dict[str, str]], pdf_path: str, is_extra: bool = 
             if not existing_source:
                 rows[idx]["Source File"] = f"{os.path.basename(pdf_path)} - Page {page_num + 1}"
             
-            rows[idx][date_columns[0]] = f"{day1_value}"
-            rows[idx][date_columns[1]] = f"{day2_value}"
-            rows[idx][date_columns[2]] = f"{day3_value}"
+            for date_col, day_value in zip(date_columns, totals):
+                rows[idx][date_col] = f"{day_value}"
+    
+    # Write all extracted text to .txt file
+    txt_path = _txt_path_for(pdf_path)
+    try:
+        print(f"Writing extracted text to {txt_path}")
+        with open(txt_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n\x0c\n".join(all_page_texts))  # \x0c = form feed
+    except Exception as e:
+        print(f"Warning: Failed to write text to '{txt_path}': {e}")
 
     return rows, all_date_columns
 
