@@ -17,6 +17,9 @@ interface Resident {
   averageIntake?: number;
   hasFeedingTube?: boolean;
   comments?: string;
+  ipc_found?: string;
+  infection?: string;
+  infection_type?: string;
 }
 
 export default function HydrationData({ userRole, retirementHome }: HydrationDataProps) {
@@ -778,8 +781,30 @@ export default function HydrationData({ userRole, retirementHome }: HydrationDat
               <td className="px-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-100" style={{ maxWidth: '200px', width: 'auto' }}>
                 <div className="flex items-start space-x-2">
                   <div className="break-words min-w-0" title={cleanResidentName(resident.name)}>
-                    <div className="font-medium text-gray-900 dark:text-gray-100 break-words min-w-0">
-                      {cleanResidentName(resident.name)}
+                    <div className="font-medium text-gray-900 dark:text-gray-100 break-words min-w-0 flex items-center space-x-2">
+                      <span>{cleanResidentName(resident.name)}</span>
+                      {resident.ipc_found === 'yes' && (
+                        <div className="relative inline-block group">
+                          <img 
+                            src="/ipc-icon.png" 
+                            alt="IPC Alert" 
+                            className="w-8 h-7 flex-shrink-0 cursor-pointer"
+                            onError={(e) => {
+                              console.error('Failed to load IPC icon for', resident.name, e);
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                            onLoad={() => {
+                              console.log('IPC icon loaded for', resident.name);
+                            }}
+                          />
+                          <div className="absolute left-0 top-6 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                            <div className="font-semibold mb-1">IPC Alert</div>
+                            <div>Infection: {resident.infection && resident.infection !== '-' && resident.infection !== 'none' ? resident.infection : '-'}</div>
+                            <div>Infection Type: {resident.infection_type && resident.infection_type !== '-' && resident.infection_type !== 'none' ? resident.infection_type : '-'}</div>
+                            <div className="absolute -top-1 left-2 w-2 h-2 bg-gray-900 dark:bg-gray-700 transform rotate-45"></div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center space-x-2">
                       <span>{resident.unit || 'Unknown'}</span>

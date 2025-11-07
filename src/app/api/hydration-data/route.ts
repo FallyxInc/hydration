@@ -96,6 +96,9 @@ async function accessLocalData(userRole: string, retirementHome: string) {
               source: resident.source || '',
               missed3Days: resident.missed3Days || 'no',
               hasFeedingTube: resident.hasFeedingTube || false,
+              ipc_found: resident.ipc_found || 'no',
+              infection: resident.infection || '-',
+              infection_type: resident.infection_type || '-',
               dateData: {}
             });
           }
@@ -110,6 +113,16 @@ async function accessLocalData(userRole: string, retirementHome: string) {
           }
           if (existingResident.missed3Days === 'no' && resident.missed3Days === 'yes') {
             existingResident.missed3Days = 'yes';
+          }
+          // Update IPC fields if they exist in the data
+          if (resident.ipc_found && resident.ipc_found === 'yes') {
+            existingResident.ipc_found = 'yes';
+            if (resident.infection) {
+              existingResident.infection = resident.infection;
+            }
+            if (resident.infection_type) {
+              existingResident.infection_type = resident.infection_type;
+            }
           }
         }
       } catch (error) {
@@ -199,6 +212,9 @@ async function accessFirestoreData(userRole: string, retirementHome: string) {
               source: resident.source || '',
               missed3Days: resident.missed3Days || 'no',
               hasFeedingTube: resident.hasFeedingTube || false,
+              ipc_found: resident.ipc_found || 'no',
+              infection: resident.infection || '-',
+              infection_type: resident.infection_type || '-',
               dateData: {}
             });
           }
@@ -213,6 +229,16 @@ async function accessFirestoreData(userRole: string, retirementHome: string) {
           }
           if (existingResident.missed3Days === 'no' && resident.missed3Days === 'yes') {
             existingResident.missed3Days = 'yes';
+          }
+          // Update IPC fields if they exist in the data
+          if (resident.ipc_found && resident.ipc_found === 'yes') {
+            existingResident.ipc_found = 'yes';
+            if (resident.infection) {
+              existingResident.infection = resident.infection;
+            }
+            if (resident.infection_type) {
+              existingResident.infection_type = resident.infection_type;
+            }
           }
         }
       } catch (error) {

@@ -107,12 +107,34 @@ def generate_dashboard_data():
             # Convert missed3_days to yes/no
             missed3_days_clean = 'yes' if missed3_days == 'yes' else 'no'
             
+            # Check if IPC data exists for this resident
+            ipc_found_raw = row.get('IPC Found', '').strip().lower()
+            ipc_found = ipc_found_raw if ipc_found_raw in ['yes', 'no'] else 'no'
+            
+            # Read infection and infection_type values
+            infection_raw = row.get('Infection', '').strip()
+            infection_type_raw = row.get('Infection Type', '').strip()
+            
+            # Convert "None" (from process_ipc_csv.py) or empty values to "-"
+            if not infection_raw or infection_raw.lower() == 'none':
+                infection = '-'
+            else:
+                infection = infection_raw
+            
+            if not infection_type_raw or infection_type_raw.lower() == 'none':
+                infection_type = '-'
+            else:
+                infection_type = infection_type_raw
+                
             residents_data.append({
                 "name": name,
                 "goal": goal_num,
                 "source": source,
                 "missed3Days": missed3_days_clean,
-                "data": data_value
+                "data": data_value,
+                "ipc_found": ipc_found,
+                "infection": infection,
+                "infection_type": infection_type
             })
         
         # Generate filename from date

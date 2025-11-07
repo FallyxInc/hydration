@@ -154,6 +154,25 @@ def extract_resident_names(text: str) -> List[str]:
         if not any(skip_word.lower() in name_lower for skip_word in skip_words):
             names.append(name)
     
+    # Pattern 4: Format "LASTNAME, FIRSTNAME (000-00)" - ID with dash format
+    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s*[A-Z][A-Za-z\s\'-]+)\s*\(\d{3}-\d{2}\)", text):
+        name = m.group(1).strip().title()
+        name = clean_name(name)
+        name_lower = name.lower()
+        # Skip if the name contains any skip words (case-insensitive)
+        if not any(skip_word.lower() in name_lower for skip_word in skip_words):
+            names.append(name)
+
+    
+    # Pattern 5: Format "LASTNAME, FIRSTNAME (00-00)" - ID with dash format
+    for m in re.finditer(r"\b([A-Z][A-Za-z\s\'-]+,\s*[A-Z][A-Za-z\s\'-]+)\s*\(\d{2}-\d{2}\)", text):
+        name = m.group(1).strip().title()
+        name = clean_name(name)
+        name_lower = name.lower()
+        # Skip if the name contains any skip words (case-insensitive)
+        if not any(skip_word.lower() in name_lower for skip_word in skip_words):
+            names.append(name)
+    
     # Remove duplicates while preserving order
     seen = set()
     unique_names = []
