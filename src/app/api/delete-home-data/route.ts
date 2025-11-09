@@ -52,6 +52,30 @@ export async function POST(request: NextRequest) {
           console.log('⚠️ [DELETE API] Hydration data folder may not exist:', error);
         }
 
+        // Delete hydration-goals files
+        const hydrationGoalsRef = ref(fbStorage, `retirement-homes/${homeIdentifier}/hydration-goals`);
+        try {
+          const hydrationGoalsList = await listAll(hydrationGoalsRef);
+          for (const itemRef of hydrationGoalsList.items) {
+            await deleteObject(itemRef);
+            console.log(`✅ [DELETE API] Deleted Storage file: ${itemRef.fullPath}`);
+          }
+        } catch (error) {
+          console.log('⚠️ [DELETE API] Hydration goals folder may not exist:', error);
+        }
+
+        // Delete ipc-data files
+        const ipcDataRef = ref(fbStorage, `retirement-homes/${homeIdentifier}/ipc-data`);
+        try {
+          const ipcDataList = await listAll(ipcDataRef);
+          for (const itemRef of ipcDataList.items) {
+            await deleteObject(itemRef);
+            console.log(`✅ [DELETE API] Deleted Storage file: ${itemRef.fullPath}`);
+          }
+        } catch (error) {
+          console.log('⚠️ [DELETE API] IPC data folder may not exist:', error);
+        }
+
         console.log('✅ [DELETE API] Firebase Storage deletion completed');
       } catch (error) {
         console.log('⚠️ [DELETE API] Error deleting Firebase Storage files:', error);
@@ -100,6 +124,30 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           console.log('⚠️ [DELETE API] Hydration data collection may not exist:', error);
+        }
+
+        // Delete hydration-goals subcollection
+        const hydrationGoalsRef = collection(fbdb, 'retirement-homes', homeIdentifier, 'hydration-goals');
+        try {
+          const hydrationGoalsDocs = await getDocs(hydrationGoalsRef);
+          for (const docSnapshot of hydrationGoalsDocs.docs) {
+            await deleteDoc(docSnapshot.ref);
+            console.log(`✅ [DELETE API] Deleted Firestore document: hydration-goals/${docSnapshot.id}`);
+          }
+        } catch (error) {
+          console.log('⚠️ [DELETE API] Hydration goals collection may not exist:', error);
+        }
+
+        // Delete ipc-data subcollection
+        const ipcDataRef = collection(fbdb, 'retirement-homes', homeIdentifier, 'ipc-data');
+        try {
+          const ipcDataDocs = await getDocs(ipcDataRef);
+          for (const docSnapshot of ipcDataDocs.docs) {
+            await deleteDoc(docSnapshot.ref);
+            console.log(`✅ [DELETE API] Deleted Firestore document: ipc-data/${docSnapshot.id}`);
+          }
+        } catch (error) {
+          console.log('⚠️ [DELETE API] IPC data collection may not exist:', error);
         }
 
         // Delete main retirement-homes document
