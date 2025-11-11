@@ -280,18 +280,17 @@ def extract_fluid_targets_ml(text: str, debug=False) -> List[int]:
                 except ValueError:
                     pass
     
-    # Pattern 3: Look for ml/mL numbers in lines that contain hydration-related keywords
-    hydration_keywords = ['drink', 'minimum', 'target', 'goal', 'fluid', 'hydration']
+    # Pattern 3: Only look for ml/mL numbers in lines that explicitly contain "FLUID TARGET"
+    # This is more restrictive to avoid false positives from outcome/goal statements
     for line in text.splitlines():
-        line_lower = line.lower()
-        if any(keyword in line_lower for keyword in hydration_keywords):
+        if re.search(r"FLUID\s*TARGET", line, flags=re.IGNORECASE):
             # Look for 3+ digit numbers followed by ml/mL in the same line
             numbers = re.findall(r"(\d{3,})\s*(mL|ml)", line, flags=re.IGNORECASE)
             for num, unit in numbers:
                 try:
                     targets.append(int(num.replace(",", "")))
                     if debug:
-                        print(f"Found target via pattern 3 (hydration keywords): {num} ml")
+                        print(f"Found target via pattern 3 (FLUID TARGET line): {num} ml")
                 except ValueError:
                     pass
     
@@ -299,17 +298,6 @@ def extract_fluid_targets_ml(text: str, debug=False) -> List[int]:
     all_ml_numbers = re.findall(r"(\d{3,})\s*(mL|ml)", text, flags=re.IGNORECASE)
     if debug:
         print(f"All ml/mL numbers found in text: {all_ml_numbers}")
-    
-    # If we still haven't found targets, try broader patterns
-    if not targets:
-        # Look for any reasonable ml amounts (500-5000ml range) in the text
-        for m in re.finditer(r"(\d{3,})\s*(mL|ml)", text, flags=re.IGNORECASE):
-            num = int(m.group(1).replace(",", ""))
-            # Reasonable range for daily fluid intake
-            if 500 <= num <= 5000:
-                targets.append(num)
-                if debug:
-                    print(f"Found target via pattern 4 (reasonable range): {num} ml")
     
     # Remove duplicates while preserving order
     seen = set()
