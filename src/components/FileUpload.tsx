@@ -134,12 +134,15 @@ export default function FileUpload({}: FileUploadProps) {
         setMessage('Files processed successfully!');
         setCarePlanFiles([]);
         setHydrationDataFiles([]);
+        setIpcDataFiles([]);
         setSelectedRetirementHome('');
         // Reset file inputs
         const carePlanInput = document.getElementById('carePlan') as HTMLInputElement;
         const hydrationDataInput = document.getElementById('hydrationData') as HTMLInputElement;
+        const ipcDataInput = document.getElementById('ipcData') as HTMLInputElement;
         if (carePlanInput) carePlanInput.value = '';
         if (hydrationDataInput) hydrationDataInput.value = '';
+        if (ipcDataInput) ipcDataInput.value = '';
       } else {
         console.error('❌ [FILE UPLOAD] Error processing files:', result.error);
         setMessage(`Error: ${result.error}`);
